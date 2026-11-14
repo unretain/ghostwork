@@ -5,30 +5,30 @@ import { getCards, getStats, near, PALETTE, previewArt, rating, toYocto, type Ca
 import { call, useSession } from "../../chain/wallet";
 import { commitment, loadSkill, randomHex, saveSkill } from "../../lib/vault";
 import { MintIcon } from "../icons";
+import { abilitiesBlock, AbilitiesEditor, abilityProblem, newDraft, taskBudgetOf, type Draft } from "./Abilities";
 import { AgentCard, faceOf, type CardFace } from "./AgentCard";
 import { ConnectButtons, SessionBar, toast, useBusy } from "./shared";
 
-// Starting points. Each is only worth paying for once the owner adds what they alone
-// have: a private data feed, or their own documents.
-type SourceKind = "none" | "api" | "db" | "solana" | "radius";
-const EXAMPLES: { label: string; title: string; skill: string; about: string; prompt: string; source?: SourceKind }[] = [
+// Starting points. Each one fills in the text and adds the abilities it needs;
+// the owner supplies what only they have (an address, a key, a document).
+const EXAMPLES: { label: string; title: string; skill: string; about: string; prompt: string; abilities: Draft["kind"][] }[] = [
   {
-    label: "Solana data analyst (needs your gRPC feed)",
-    title: "Yellowstone",
-    skill: "Analyses live Solana chain data",
-    about: "Ask what is happening on Solana right now: busiest programs, network speed, or what a wallet or program is doing.",
+    label: "Answers from your documents",
+    title: "Ledger",
+    skill: "Answers questions about your product",
+    about: "Ask anything covered by our documentation.",
     prompt:
-      "You are an on-chain analyst for Solana mainnet. Answer the customer's question using live data from your tools. Be concrete: give the numbers you measured, name the programs, and say how long you watched. If they give an address, watch it. Keep answers under 250 words.",
-    source: "solana",
+      "Answer the customer's question using only the private knowledge below. Quote exact figures, limits and steps where they exist. If the knowledge does not cover the question, say so. Never paste whole sections.",
+    abilities: [],
   },
   {
-    label: "Answers from your API",
+    label: "Uses your own tools",
     title: "Quill",
-    skill: "Answers questions from our live data",
-    about: "Ask about anything our data covers.",
+    skill: "Looks things up and acts through our systems",
+    about: "Say what you need done.",
     prompt:
-      "Answer the customer's question using data from your tool. Look the data up before answering and give the exact figures it returns. If the data does not cover the question, say so.",
-    source: "api",
+      "Do what the customer asks using your tools. Look things up before answering and give the exact results the tools return. If a tool can't do what is asked, say so.",
+    abilities: ["tool"],
   },
   {
     label: "Answers from your database",
@@ -37,7 +37,16 @@ const EXAMPLES: { label: string; title: string; skill: string; about: string; pr
     about: "Ask a question about our records.",
     prompt:
       "Answer the customer's question from the database. Look at the tables first, then query. Give exact figures and say what period or filter you used. If the data does not cover the question, say so.",
-    source: "db",
+    abilities: ["db"],
+  },
+  {
+    label: "Checks a photo",
+    title: "Lark",
+    skill: "Checks a photo against what you say it shows",
+    about: "Attach a photo and say what it should show.",
+    prompt:
+      "The customer sends a photo and says what it is supposed to show. Look at the photo and say whether it does, starting with YES or NO, then one sentence on what you actually see.",
+    abilities: ["photos"],
   },
   {
     label: "Hires people for real-world tasks",
@@ -46,15 +55,16 @@ const EXAMPLES: { label: string; title: string; skill: string; about: string; pr
     about: "Say what you need seen or checked, and where.",
     prompt:
       "When the customer asks for something to be seen, checked or photographed at a place: look the place up, then post one task there. Write the task for the person doing it: a clear title, what to do, and exactly what the proof photo must show. Use a reward of 0.1 NEAR and a radius of 150 metres unless asked otherwise. Tell the customer the task id and the place. When asked about a task, look it up and report its status.",
-    source: "radius",
+    abilities: ["radius"],
   },
   {
-    label: "Answers from your own documents",
-    title: "Ledger",
-    skill: "Answers questions about your product",
-    about: "Ask anything covered by our documentation.",
+    label: "Solana data analyst",
+    title: "Yellowstone",
+    skill: "Analyses live Solana chain data",
+    about: "Ask what is happening on Solana right now: busiest programs, network speed, or what a wallet or program is doing.",
     prompt:
-      "Answer the customer's question using only the private knowledge below. Quote exact figures, limits and steps where they exist. If the knowledge does not cover the question, say so. Never paste whole sections.",
+      "You are an on-chain analyst for Solana mainnet. Answer the customer's question using live data from your tools. Be concrete: give the numbers you measured, name the programs, and say how long you watched. If they give an address, watch it. Keep answers under 250 words.",
+    abilities: ["solana"],
   },
 ];
 
@@ -68,21 +78,8 @@ function MintForm({ minPrice, onMinted }: { minPrice: string; onMinted: () => vo
   const [knowledge, setKnowledge] = useState("");
   const [price, setPrice] = useState("0.1");
   const [color, setColor] = useState<string>("Tide");
-  // what the agent can use while doing a job, beyond its instructions and pasted knowledge
-  const [kind, setKind] = useState<SourceKind>("none");
-  const useSource = kind === "solana";
-  const useRadius = kind === "radius";
-  const useApi = kind === "api";
-  const useDb = kind === "db";
-  const [dbUrl, setDbUrl] = useState("");
-  const [dbGuide, setDbGuide] = useState("");
-  const [apiUrl, setApiUrl] = useState("");
-  const [apiHeader, setApiHeader] = useState("Authorization");
-  const [apiSecret, setApiSecret] = useState("");
-  const [apiGuide, setApiGuide] = useState("");
-  const [taskBudget, setTaskBudget] = useState("0.2");
-  const [endpoint, setEndpoint] = useState("");
-  const [token, setToken] = useState("");
+  // what the agent can use while doing a job: any number of abilities, in any mix
+  const [abilities, setAbilities] = useState<Draft[]>([]);
   const [art, setArt] = useState<string | null>(null);
   const { busy, run } = useBusy();
 
@@ -104,15 +101,7 @@ function MintForm({ minPrice, onMinted }: { minPrice: string; onMinted: () => vo
       ? "Say what it does"
       : prompt.trim().length < 20
         ? "Write its private instructions (at least 20 characters)"
-        : useSource && (!endpoint.trim() || !token.trim())
-          ? "Enter the feed's endpoint and token"
-          : useApi && (!/^https:\/\/.+/i.test(apiUrl.trim()) || !apiHeader.trim() || !apiSecret.trim() || apiGuide.trim().length < 10)
-            ? "Enter the API's https address, its header and key, and a short guide to its paths"
-            : useDb && !/^postgres(ql)?:\/\/.+@.+/i.test(dbUrl.trim())
-              ? "Enter the database's connection string (postgres://user:password@host/database)"
-          : !priceYocto || BigInt(priceYocto) < BigInt(minPrice)
-            ? `Price must be at least ${near(minPrice)} NEAR`
-            : null;
+        : (abilityProblem(abilities) ?? (!priceYocto || BigInt(priceYocto) < BigInt(minPrice) ? `Price must be at least ${near(minPrice)} NEAR` : null));
 
   const face: CardFace = {
     title: title.trim(),
@@ -128,17 +117,8 @@ function MintForm({ minPrice, onMinted }: { minPrice: string; onMinted: () => vo
 
   const mint = () =>
     run("mint", async () => {
-      // instructions, private knowledge and the data source are sealed together as one text
-      let text = knowledge.trim() ? `${prompt.trim()}\n\n--- PRIVATE KNOWLEDGE ---\n${knowledge.trim()}` : prompt.trim();
-      if (useSource) {
-        text += `\n--- DATA SOURCE ---\n${JSON.stringify({ type: "solana-yellowstone-grpc", endpoint: endpoint.trim(), token: token.trim() })}`;
-      } else if (useApi) {
-        text += `\n--- DATA SOURCE ---\n${JSON.stringify({ type: "http-api", base_url: apiUrl.trim(), header_name: apiHeader.trim(), header_value: apiSecret.trim(), guide: apiGuide.trim() })}`;
-      } else if (useDb) {
-        text += `\n--- DATA SOURCE ---\n${JSON.stringify({ type: "postgres", url: dbUrl.trim(), guide: dbGuide.trim() })}`;
-      } else if (useRadius) {
-        text += `\n--- DATA SOURCE ---\n${JSON.stringify({ type: "radius-tasks" })}`;
-      }
+      // instructions, private knowledge and abilities are sent to the agent as one text
+      const text = (knowledge.trim() ? `${prompt.trim()}\n\n--- PRIVATE KNOWLEDGE ---\n${knowledge.trim()}` : prompt.trim()) + abilitiesBlock(abilities);
       const salt = randomHex();
       const hash = await commitment(salt, text);
       // kept in this browser until the agent has it, in case the wallet redirects away
@@ -150,8 +130,8 @@ function MintForm({ minPrice, onMinted }: { minPrice: string; onMinted: () => vo
       );
       if (result?.token_id) {
         await deliverSkill(result.token_id, salt, text).catch(() => {});
-        const budget = useRadius ? toYocto(taskBudget) : null;
-        if (budget) await call("set_task_budget", { token_id: result.token_id, max_reward: budget });
+        const budget = toYocto(taskBudgetOf(abilities) ?? "");
+        if (budget && budget !== "0") await call("set_task_budget", { token_id: result.token_id, max_reward: budget });
         toast("ok", `${title.trim()} is minted and ready to hire`, txHash && `${NEAR_EXPLORER}/txns/${txHash}`);
         onMinted();
         window.location.hash = `#/card/${result.token_id}`;
@@ -166,8 +146,8 @@ function MintForm({ minPrice, onMinted }: { minPrice: string; onMinted: () => vo
       <div className="mint__form">
         <h2 className="panel-title">Mint an agent card</h2>
         <p className="muted mint__lead">
-          People pay for a card that can do something a free chatbot can't. Give yours your own documents, a database, an API or feed you have access to, or let
-          it hire people. It earns 85% of every job.
+          People pay for a card that can do something a free chatbot can't. Write how it should work, then give it whatever it needs: your documents,
+          your own tools, a database, the ability to see photos or to hire people. It earns 85% of every job.
         </p>
         <div className="examples">
           <span className="muted">Start from an example:</span>
@@ -180,7 +160,7 @@ function MintForm({ minPrice, onMinted }: { minPrice: string; onMinted: () => vo
                 setSkill(e.skill);
                 setAbout(e.about);
                 setPrompt(e.prompt);
-                setKind(e.source ?? "none");
+                setAbilities(e.abilities.map(newDraft));
               }}
             >
               {e.label}
@@ -226,76 +206,7 @@ function MintForm({ minPrice, onMinted }: { minPrice: string; onMinted: () => vo
             onChange={(e) => setKnowledge(e.target.value)}
           />
         </label>
-        <div className="lbl">
-          What else can it use?
-          <select className="field field--select" value={kind} onChange={(e) => setKind(e.target.value as SourceKind)} aria-label="What else the agent can use">
-            <option value="none">Nothing else: instructions and pasted knowledge only</option>
-            <option value="api">A web API I have a key for</option>
-            <option value="db">A Postgres database (read-only)</option>
-            <option value="solana">A live Solana feed (Yellowstone gRPC)</option>
-            <option value="radius">It can hire people for real-world tasks (Radius)</option>
-          </select>
-          {useApi && (
-            <div className="source">
-              <span className="muted">
-                While doing a job the agent can read from your API. The agent service adds your key to each request; the AI model is given the
-                responses only. Read-only, https only.
-              </span>
-              <input className="field" placeholder="API address, e.g. https://api.example.com/v1" value={apiUrl} onChange={(e) => setApiUrl(e.target.value)} aria-label="API address" />
-              <input className="field" placeholder="Header name, e.g. Authorization or X-API-Key" value={apiHeader} onChange={(e) => setApiHeader(e.target.value)} aria-label="Header name" />
-              <input className="field" type="password" placeholder="Header value, e.g. Bearer your-key" value={apiSecret} onChange={(e) => setApiSecret(e.target.value)} aria-label="Header value" autoComplete="off" />
-              <textarea
-                className="field field--area"
-                rows={3}
-                maxLength={3000}
-                placeholder={"What the API offers, in your own words. For example:\nGET /prices/latest returns today's price for every product\nGET /orders?status=open returns the open orders"}
-                value={apiGuide}
-                onChange={(e) => setApiGuide(e.target.value)}
-                aria-label="Guide to the API"
-              />
-            </div>
-          )}
-          {useDb && (
-            <div className="source">
-              <span className="muted">
-                While doing a job the agent can list your tables and run SELECT queries. Every query runs read-only with a time limit and returns at
-                most 200 rows. Use a database user that can only read the tables you want customers to get answers from.
-              </span>
-              <input className="field" type="password" placeholder="postgres://user:password@host:5432/database" value={dbUrl} onChange={(e) => setDbUrl(e.target.value)} aria-label="Database connection string" autoComplete="off" />
-              <textarea
-                className="field field--area"
-                rows={2}
-                maxLength={3000}
-                placeholder="Optional notes on what the tables and columns mean."
-                value={dbGuide}
-                onChange={(e) => setDbGuide(e.target.value)}
-                aria-label="Notes about the data"
-              />
-            </div>
-          )}
-          {useSource && (
-            <div className="source">
-              <span className="muted">
-                The agent can watch the live Solana chain through your feed. The agent service connects with your token; the AI model is given the
-                results only.
-              </span>
-              <input className="field" placeholder="Endpoint, e.g. solana-yellowstone-grpc.publicnode.com:443" value={endpoint} onChange={(e) => setEndpoint(e.target.value)} aria-label="gRPC endpoint" />
-              <input className="field" type="password" placeholder="Access token" value={token} onChange={(e) => setToken(e.target.value)} aria-label="gRPC access token" autoComplete="off" />
-            </div>
-          )}
-          {useRadius && (
-            <div className="source">
-              <span className="muted">
-                During a job the agent can post a task for a person near a place. The reward comes out of this card's own balance, up to the limit
-                below for each task. After minting, add some NEAR to the card from its page so it can pay for its first tasks.
-              </span>
-              <span className="price-input">
-                <input className="field field--sm" inputMode="decimal" value={taskBudget} onChange={(e) => setTaskBudget(e.target.value)} aria-label="Most it may pay per task" />
-                NEAR at most per task
-              </span>
-            </div>
-          )}
-        </div>
+        <AbilitiesEditor value={abilities} onChange={setAbilities} />
         <div className="lbl">
           Card colour
           <div className="swatches" role="radiogroup" aria-label="Card colour">

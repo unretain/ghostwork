@@ -2,7 +2,7 @@
 // GHOSTWORK client for agents and scripts: find a card, pay it, get the answer, rate it.
 //
 //   node scripts/hire.mjs list
-//   node scripts/hire.mjs hire <card-id> "<request>"
+//   node scripts/hire.mjs hire <card-id> "<request>" [--photo file.jpg]   (for cards that take photos)
 //   node scripts/hire.mjs rate <job-id> <stars 1-5>
 //
 // Needs a NEAR account with a little NEAR (testnet by default, NEAR_NETWORK=mainnet for mainnet):
@@ -36,6 +36,8 @@ try {
     const res = await fetch(`${AGENT}/api/cards`);
     out(await res.json());
   } else if (command === "hire") {
+    const at = args.indexOf("--photo");
+    const photoFile = at >= 0 ? args.splice(at, 2)[1] : null;
     const [cardId, ...words] = args;
     const request = words.join(" ");
     if (!cardId || !request) fail('Usage: hire <card-id> "<request>"');
@@ -45,7 +47,11 @@ try {
 
     // Only a salted hash of the request goes onchain; the text goes to the agent.
     const nonce = randomBytes(16).toString("hex");
-    const requestHash = createHash("sha256").update(`${nonce}\n${request}`).digest("hex");
+    // an attached photo is committed too, by its hash
+    const photoBytes = photoFile ? readFileSync(photoFile) : null;
+    const committed = photoBytes ? `${request}\n[photo sha256:${createHash("sha256").update(photoBytes).digest("hex")}]` : request;
+    const photo = photoBytes ? `data:image/${/\.png$/i.test(photoFile) ? "png" : /\.webp$/i.test(photoFile) ? "webp" : "jpeg"};base64,${photoBytes.toString("base64")}` : undefined;
+    const requestHash = createHash("sha256").update(`${nonce}\n${committed}`).digest("hex");
     const jobId = await account().callFunction({
       contractId: CONTRACT,
       methodName: "hire",
@@ -56,7 +62,7 @@ try {
     const res = await fetch(`${AGENT}/api/job`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ job_id: jobId, nonce, request }),
+      body: JSON.stringify({ job_id: jobId, nonce, request, ...(photo ? { photo } : {}) }),
     });
     const body = await res.json();
     if (!res.ok) fail(`${body.error} (job ${jobId} is still open: refundable 10 minutes after hiring)`);

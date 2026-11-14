@@ -1064,3 +1064,37 @@ a.gcard:focus-visible {
 .roster__contract a {
   text-decoration: underline;
 }
+
+.source__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 13.5px;
+  color: var(--warm-display);
+}
+.source .inline-form {
+  display: flex;
+  gap: 8px;
+}
+.source .inline-form .field {
+  flex: 1;
+}
+.source .inline-form .field--select {
+  flex: 0 0 96px;
+}
+.hire__photo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+  font-size: 13px;
+  color: var(--warm-muted);
+}
+.hire__photo input {
+  display: none;
+}
+.hire__photo img {
+  height: 44px;
+  border-radius: 6px;
+}

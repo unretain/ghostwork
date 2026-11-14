@@ -7,6 +7,18 @@ import { call, useSession } from "../../chain/wallet";
 import { commitment, loadAnswer, loadRequest, loadSkill, randomHex, saveAnswer, saveRequest, saveSkill } from "../../lib/vault";
 import { AgentCard, faceOf } from "./AgentCard";
 import { ago, ConnectButtons, SessionBar, short, toast, useBusy } from "./shared";
+import { dataUrl, hex, shrink } from "./Tasks";
+
+/** Plain names for the kinds of ability the agent reports for a card. */
+const ABILITY_NAMES: Record<string, string> = {
+  tool: "custom tools",
+  mcp: "an MCP server",
+  "http-api": "a web API",
+  postgres: "a database",
+  "solana-yellowstone-grpc": "a live Solana feed",
+  "radius-tasks": "hiring people",
+  photos: "photos from customers",
+};
 
 type Props = { card: Card; account: string | null; onChange: () => Promise<void> | void };
 
@@ -24,20 +36,22 @@ function Stars({ onRate, disabled }: { onRate: (n: number) => void; disabled: bo
   );
 }
 
-function HirePanel({ card, account, onChange, stats }: Props & { stats: Stats | null }) {
+function HirePanel({ card, account, onChange, stats, takesPhotos }: Props & { stats: Stats | null; takesPhotos: boolean }) {
   const [request, setRequest] = useState("");
+  const [photo, setPhoto] = useState<{ url: string; hash: string } | null>(null);
   const [phase, setPhase] = useState<"idle" | "paying" | "working">("idle");
   const { busy, run } = useBusy();
   const resumed = useRef(new Set<string>());
   const isOwner = account === card.owner_id;
 
   const finish = useCallback(
-    async (jobId: string, nonce: string, text: string) => {
+    async (jobId: string, nonce: string, text: string, photoUrl?: string) => {
       setPhase("working");
       try {
-        const { result } = await deliverJob(jobId, nonce, text);
+        const { result } = await deliverJob(jobId, nonce, text, photoUrl);
         saveAnswer(jobId, result);
         setRequest("");
+        setPhoto(null);
       } finally {
         setPhase("idle");
         await onChange();
@@ -50,8 +64,9 @@ function HirePanel({ card, account, onChange, stats }: Props & { stats: Stats | 
     run("hire", async () => {
       const text = request.trim();
       const nonce = randomHex();
-      const hash = await commitment(nonce, text);
-      saveRequest(hash, { nonce, request: text });
+      // an attached photo is part of what gets committed onchain
+      const hash = await commitment(nonce, photo ? `${text}\n[photo sha256:${photo.hash}]` : text);
+      saveRequest(hash, { nonce, request: text, photo: photo?.url });
       setPhase("paying");
       let jobId: string | null = null;
       try {
@@ -70,7 +85,7 @@ function HirePanel({ card, account, onChange, stats }: Props & { stats: Stats | 
         throw new Error("Paid, but couldn't find the job yet. Reload this page to pick it up.");
       }
       resumed.current.add(jobId);
-      await finish(String(jobId), nonce, text);
+      await finish(String(jobId), nonce, text, photo?.url);
     });
 
   // My jobs on this card, newest first.
@@ -83,7 +98,7 @@ function HirePanel({ card, account, onChange, stats }: Props & { stats: Stats | 
       const secret = j.status === "Open" ? loadRequest(j.request_hash) : null;
       if (!secret || resumed.current.has(j.job_id)) continue;
       resumed.current.add(j.job_id);
-      finish(j.job_id, secret.nonce, secret.request).catch((e) => toast("err", (e as Error).message));
+      finish(j.job_id, secret.nonce, secret.request, secret.photo).catch((e) => toast("err", (e as Error).message));
       break;
     }
   });
@@ -108,6 +123,26 @@ function HirePanel({ card, account, onChange, stats }: Props & { stats: Stats | 
             disabled={phase !== "idle"}
             onChange={(e) => setRequest(e.target.value)}
           />
+          {takesPhotos && (
+            <label className="hire__photo">
+              <span className="mini-btn">{photo ? "Change photo" : "Attach a photo"}</span>
+              <input
+                type="file"
+                accept="image/*"
+                disabled={phase !== "idle"}
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  e.target.value = "";
+                  if (!file) return;
+                  run("photo", async () => {
+                    const small = await shrink(file);
+                    setPhoto({ url: await dataUrl(small), hash: hex(await crypto.subtle.digest("SHA-256", await small.arrayBuffer())) });
+                  });
+                }}
+              />
+              {photo ? <img src={photo.url} alt="Attached" /> : "This card can look at a photo you send."}
+            </label>
+          )}
           {priceWorth && (
             <p className="muted hire__worth">
               One job costs {near(card.price)} NEAR, {priceWorth} at live NEAR Intents rates.
@@ -563,6 +598,9 @@ function Passport({ card, info, agent }: { card: Card; info: ContractInfo | null
       )}
       {row("Skill commitment", card.prompt_hash ? short(card.prompt_hash, 10) : "none")}
       {row("Model", agent?.llm.mode === "live" ? agent.llm.model : "—")}
+      {agent?.abilities?.[card.token_id]?.length
+        ? row("Can use", [...new Set(agent.abilities[card.token_id].map((k) => ABILITY_NAMES[k] ?? k))].join(", "))
+        : null}
       {row("Lifetime earnings", `${near(card.earned)} NEAR over ${card.jobs_done} jobs`)}
       {BigInt(card.task_budget) > 0n &&
         row(
@@ -662,7 +700,7 @@ export function CardPage({ tokenId }: { tokenId: string }) {
             </aside>
             <div className="cardpage__main">
               {account !== card.owner_id && <BuyPanel card={card} account={account} onChange={refresh} />}
-              <HirePanel card={card} account={account} onChange={refresh} stats={stats} />
+              <HirePanel card={card} account={account} onChange={refresh} stats={stats} takesPhotos={!!agent?.abilities?.[card.token_id]?.includes("photos")} />
               {account === card.owner_id && <OwnerPanel card={card} account={account} onChange={refresh} agent={agent} />}
               <Passport card={card} info={info} agent={agent} />
               <Receipts jobs={card.recent_jobs} />

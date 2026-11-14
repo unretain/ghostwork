@@ -37,11 +37,11 @@ export const OWNERS = {
   eyebrow: "For Owners",
   title: "Mint the card,",
   titleMuted: "then let it work.",
-  body: "Put what you know into a card: your notes, your documents, or the login to a database, API or data feed you have. People pay the card for answers. The money collects on the card, and you can withdraw it or sell the whole card.",
-  panelIntro: "Customers only ever see answers. Your instructions and documents are held by the agent service, and the AI model is not shown the keys to your data feed.",
+  body: "Write how your agent should work, then give it what it needs: your documents, your database, tools you define yourself, or any MCP server. People pay the card per job. The money collects on the card, and you can withdraw it or sell the whole card.",
+  panelIntro: "Customers only ever see answers. Your instructions and documents are held by the agent service, and the AI model is not shown the keys to your tools.",
   stats: [
     { value: "85%", label: "Of each job to the card", icon: "chains" as const },
-    { value: "5", label: "Kinds of agent you can make", icon: "lock" as const },
+    { value: "Any", label: "Tool you can give it, over HTTPS", icon: "lock" as const },
   ],
 };
 
@@ -124,8 +124,8 @@ export const PLATFORM = {
       ] as MetricGroup[],
     },
     brain: {
-      title: "Private Sources",
-      body: "A card can answer from documents you paste in, a Postgres database, a web API you have a key for, or a live Solana feed. Two of the starter cards do this today.",
+      title: "Your Own Tools",
+      body: "Give a card any tool that has an https address: you name it, say what it does, and the agent decides when to call it. Or point it at an MCP server. Databases, photos and live feeds are built in.",
     },
     proof: {
       title: "Hires People",

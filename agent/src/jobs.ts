@@ -4,14 +4,17 @@
 // commitments; the texts are sent here and only accepted when they match:
 //   prompt_hash  = sha256(salt  + "\n" + instructions)   set by the card owner
 //   request_hash = sha256(nonce + "\n" + request)        set by the customer when paying
+//                  (with a photo attached, the request text ends with "\n[photo sha256:<hash of the file>]")
 //   result_hash  = sha256(answer)                        posted by this agent
 import type { ShadeClient } from "@neardefi/shade-agent-js";
 import { LlmError, runSkill } from "./llm";
+import { createHash } from "node:crypto";
 import { commitment, getResult, getSkill, putResult, putSkill, sha256Hex, type Result } from "./store";
 
 // instructions plus any private knowledge the owner seals with them
 const MAX_PROMPT = 60_000;
 const MAX_REQUEST = 4000;
+const MAX_PHOTO_BYTES = 3_000_000;
 
 export class HttpError extends Error {
   constructor(
@@ -72,7 +75,18 @@ export async function runJob(agent: ShadeClient, body: Record<string, unknown>) 
   const jobId = str(body.job_id, "job_id", 24);
   const nonce = str(body.nonce, "nonce", 128);
   const request = str(body.request, "request", MAX_REQUEST);
-  const requestHash = commitment(nonce, request);
+  // An attached photo is part of what the customer committed to when paying.
+  let photo: string | undefined;
+  let committed = request;
+  if (body.photo !== undefined) {
+    const m = typeof body.photo === "string" ? /^data:image\/(?:jpeg|png|webp);base64,([A-Za-z0-9+/=]+)$/.exec(body.photo) : null;
+    if (!m) throw new HttpError(400, "photo must be a JPEG, PNG or WebP data URL");
+    const bytes = Buffer.from(m[1], "base64");
+    if (bytes.length > MAX_PHOTO_BYTES) throw new HttpError(400, "Photo is too large (3 MB at most)");
+    photo = body.photo as string;
+    committed = `${request}\n[photo sha256:${createHash("sha256").update(bytes).digest("hex")}]`;
+  }
+  const requestHash = commitment(nonce, committed);
 
   // Same request again (a retry or a dropped connection): return the stored answer.
   const cached = getResult(jobId);
@@ -83,7 +97,7 @@ export async function runJob(agent: ShadeClient, body: Record<string, unknown>) 
 
   let pending = inFlight.get(jobId);
   if (!pending) {
-    pending = work(agent, jobId, requestHash, request).finally(() => inFlight.delete(jobId));
+    pending = work(agent, jobId, requestHash, request, photo).finally(() => inFlight.delete(jobId));
     inFlight.set(jobId, pending);
   }
   const done = await pending;
@@ -91,7 +105,7 @@ export async function runJob(agent: ShadeClient, body: Record<string, unknown>) 
   return { job_id: jobId, result: done.result, result_hash: done.resultHash };
 }
 
-async function work(agent: ShadeClient, jobId: string, requestHash: string, request: string): Promise<Result> {
+async function work(agent: ShadeClient, jobId: string, requestHash: string, request: string, photo?: string): Promise<Result> {
   // A job paid a moment ago may not be visible on the node we read from yet, so wait briefly.
   let job = await view<JobView>(agent, "get_job", { job_id: jobId });
   for (let i = 0; !job && i < 6; i++) {
@@ -110,7 +124,7 @@ async function work(agent: ShadeClient, jobId: string, requestHash: string, requ
 
   let answer: string;
   try {
-    answer = await runSkill(card, skill.prompt, request, { agent, tokenId: job.token_id });
+    answer = await runSkill(card, skill.prompt, request, { agent, tokenId: job.token_id }, photo);
   } catch (e) {
     // The job stays open onchain, so the customer can refund after 10 minutes.
     if (e instanceof LlmError) throw new HttpError(502, e.message);

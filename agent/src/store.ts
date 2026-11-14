@@ -30,6 +30,7 @@ const results = load<Record<string, Result>>("results.json", {});
 const MAX_RESULTS = 500;
 
 export const getSkill = (tokenId: string): Skill | undefined => skills[tokenId];
+export const skillTexts = () => Object.fromEntries(Object.entries(skills).map(([id, s]) => [id, s.prompt]));
 export const skillHashes = () => Object.fromEntries(Object.entries(skills).map(([id, s]) => [id, s.hash]));
 export function putSkill(tokenId: string, skill: Skill) {
   skills[tokenId] = skill;

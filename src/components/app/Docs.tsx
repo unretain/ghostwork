@@ -88,8 +88,21 @@ export function Docs() {
             Press <b>Mint a card</b> on the cards page. You fill in a name, one line on what it does, what customers should send it, a price per job and a
             colour. Then you write its private instructions: how it should do the job.
           </p>
-          <p>There are five kinds of agent you can make, depending on what you add to the instructions:</p>
+          <p>
+            Then you give it abilities. Add as many as you want, in any mix. Two of them are open-ended, so what an agent can do is not limited to
+            what this project ships:
+          </p>
           <ul>
+            <li>
+              <b>Custom tool.</b> Any https endpoint, yours or someone else's. You give it a name, say what it does and list its inputs. The agent
+              decides when to call it. The endpoint can look something up, send a message, or run code you host. Add as many as you like.
+            </li>
+            <li>
+              <b>MCP server.</b> Give the address of an MCP server and the agent gets every tool it offers.
+            </li>
+            <li>
+              <b>Photos.</b> Customers can attach a photo to their request and the agent can see it.
+            </li>
             <li>
               <b>Documents.</b> Paste text into "Private knowledge": a price list, a policy, product docs, research notes. The card answers from it.
             </li>
@@ -103,9 +116,13 @@ export function Docs() {
               <b>A Solana feed.</b> Give a Yellowstone gRPC endpoint and token. The card can watch the live chain.
             </li>
             <li>
-              <b>Hiring people.</b> Choose "It can hire people". The card can post paid real-world tasks, up to a limit you set.
+              <b>Hiring people.</b> The card can post paid real-world tasks, up to a limit you set.
             </li>
           </ul>
+          <p>
+            An example of combining them: a card with "photos" plus one custom tool that writes to your own system is a photo inspector that files a
+            report. A card with a database plus "hiring people" can notice a gap in your records and pay someone to go and check.
+          </p>
           <p>
             Minting costs about 0.03 NEAR for storage. The instructions, documents and keys are sent to the agent service, which keeps them. The
             blockchain only gets a hash of them, so anyone can later check they weren't swapped.
@@ -114,6 +131,20 @@ export function Docs() {
 
         <section className="block" id="docs-sources">
           <h2 className="panel-title">Giving it private data</h2>
+          <p>
+            <b>A custom tool.</b> You fill in a name (like <span className="mono">check_stock</span>), a description, GET or POST, an https address,
+            the inputs the agent should fill in, and optionally a secret header. Inputs written as <span className="mono">{"{name}"}</span> in the
+            address are put there; the rest go in the query string (GET) or a JSON body (POST). The agent service adds your secret header. The model
+            is given what the endpoint returns.
+          </p>
+          <Code>{`name:        check_stock
+description: Looks up how many of a product are in stock.
+address:     GET https://your-server.com/stock/{product}
+inputs:      product: the product code`}</Code>
+          <p>
+            <b>An MCP server.</b> You enter the server's https address (streamable HTTP) and, if it needs one, a secret header. At the start of each
+            job the agent asks the server which tools it has and can then call any of them.
+          </p>
           <p>
             <b>A web API.</b> You enter the API's address (it must start with https), the name and value of the header that unlocks it (for example{" "}
             <span className="mono">Authorization</span> and <span className="mono">Bearer your-key</span>), and a short guide in your own words: which
@@ -137,8 +168,8 @@ GET /orders?status=open   returns the open orders`}</Code>
             The feed is live only, so it can measure what is happening now but can't look up history.
           </p>
           <p>
-            Other kinds of source need code: each is one file in the agent service (<span className="mono">httpsource.ts</span>, <span className="mono">pgsource.ts</span> and{" "}
-            <span className="mono">solana.ts</span> in <span className="mono">agent/src</span> are the three that exist).
+            Anything that isn't covered can be put behind a custom tool or an MCP server. The built-in ones are one file each in the agent service (<span className="mono">httpsource.ts</span>, <span className="mono">pgsource.ts</span> and{" "}
+            <span className="mono">solana.ts</span> in <span className="mono">agent/src</span>).
           </p>
         </section>
 

@@ -20,7 +20,7 @@ Built for the NEAR hackathon, _Build Beyond Boundaries_. Track: **NFTs That Do S
 
 ## What you can do with it
 
-- **Make an agent.** Give it a name, say what it does, write its instructions, pick a colour and set a price per job. Then choose what it can use: documents you paste in, a Postgres database, a web API you have a key for, a live Solana feed, or the ability to hire people. That mints a card.
+- **Make an agent.** Give it a name, say what it does, write its instructions, pick a colour and set a price per job. Then give it abilities, as many as you want in any mix: tools you define yourself (any https endpoint), an MCP server, a database, a web API, photos from customers, a live Solana feed, the ability to hire people. That mints a card.
 - **Read the docs in the site.** `#/docs` explains hiring, making agents, how the photo proof works, and links to the contract on a block explorer.
 - **Hire an agent.** Open a card, type what you want, pay. The answer comes back on the page. Cards with a live data source take 20 to 40 seconds.
 - **Do a task for an agent and get paid.** Open the Radius page, take a task near you, send a photo from the spot. See below.
@@ -76,6 +76,17 @@ Whoever posted a task can also accept a proof themselves, and can take the rewar
 
 What "proof" means here, plainly: the signature proves *which account* sent *which photo* with *which claimed place and time*, and that none of it was changed afterwards. It does not prove the phone was really there. See [What is not finished](#what-is-not-finished).
 
+## What an agent can use
+
+An agent is its instructions plus any number of **abilities**. Two of them are open-ended, so what an agent can do is not limited to what this project ships:
+
+- **Custom tool.** Any https endpoint, yours or someone else's. You give it a name, a description, its inputs and optionally a secret header. The AI model decides when to call it; the agent service makes the request. The endpoint can look something up, send a message or run code you host. A card can have many.
+- **MCP server.** Give the address of an MCP server (streamable HTTP) and the card gets every tool it offers.
+
+The rest are built in: **photos** (customers can attach a photo and the agent sees it), **web API**, **Postgres database**, **Solana feed**, **hiring people**.
+
+Checked against the agent code with a real model: a card with two custom tools chained them to answer a weather question and refused to print its tool addresses; a card given a public MCP server used one of its tools to answer; a card that takes photos correctly said a photo did not show what was claimed.
+
 ## How a private data source works
 
 When you make a card you can tick "connect a private data source" and enter an endpoint and its access token. They are sealed together with the instructions and stored only by the agent service.
@@ -88,7 +99,7 @@ Three kinds of source are supported:
 - **A Postgres database.** You enter a connection string. The model can list the tables and write SELECT queries; the agent service runs them and passes back the rows. Every query runs inside a read-only transaction with an 8 second limit and at most 200 rows. Checked against a test database: it answered a totals question correctly with two queries, and when told to drop a table and print the password it did neither, and the rows were untouched. The card can read whatever its database user can read, so give it a user that only sees the tables you want answers from.
 - **A Solana Yellowstone gRPC feed**, with the four tools above.
 
-Anything else (another kind of database, a websocket) means writing one more file like [`agent/src/httpsource.ts`](agent/src/httpsource.ts).
+Anything else can go behind a custom tool or an MCP server, or be added as one more file like [`agent/src/httpsource.ts`](agent/src/httpsource.ts).
 
 ## Try it
 
@@ -188,7 +199,7 @@ Create `.env.local` with `VITE_CONTRACT_ID=<your contract>` and run `npm run dev
 - **The agent service is not hosted.** It runs on the author's computer.
 - **You are trusting whoever runs the agent service.** It holds every card's sealed text and data-source keys in a file on its disk, and it sees every request. The contract can instead require the agent service to prove it is running inside tamper-proof hardware (a TEE) before it may deliver answers. That code comes from the Shade Agent template and we have not run it. Our deployment uses the simpler mode where the contract's owner approves the agent by hand.
 - **Paying from other chains has never moved real money.** The "Add funds" panel gets real deposit addresses and quotes from NEAR Intents on mainnet (checked: 1 NEAR cost about 0.045 SOL), but no payment has been sent through it, so the arrival step is untested. It tops up your NEAR account; it does not pay a card directly from another chain.
-- **Three kinds of data source.** Web APIs (read-only GET requests with one secret header), Postgres databases (read-only queries) and Solana Yellowstone gRPC feeds. APIs that need a login flow or POST requests, and databases other than Postgres, are not supported. The Solana feed is live only: it can measure what is happening now, not look up history. The web API and database sources were tested directly against the agent code, not through a paid job.
+- **Custom tools are simple HTTPS calls.** GET or POST with one secret header and text inputs. No login flows, no file uploads, and MCP servers must speak streamable HTTP. A custom tool does whatever its endpoint does, including sending or changing things, so an owner should only connect endpoints they are happy for a customer's request to trigger. The Solana feed is live only: it can measure what is happening now, not look up history. The web API, database and MCP abilities were tested directly against the agent code, not through a paid job.
 - **A bad answer still costs the customer.** Ratings warn later customers; they do not help the first one.
 - **Ratings can be bought.** An owner cannot rate their own card, but could hire it from a second account. Each fake job costs them 15% in fees.
 - **A card's instructions can leak.** The agent refuses to reveal them and filters word-for-word copies out of answers, but a model can sometimes be talked into paraphrasing them. Data-source tokens are not affected, because the model never sees them.

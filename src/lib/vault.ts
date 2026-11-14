@@ -31,7 +31,7 @@ export type SkillSecret = { salt: string; prompt: string };
 export const saveSkill = (hash: string, s: SkillSecret) => write(`gw:skill:${hash}`, s);
 export const loadSkill = (hash: string) => read<SkillSecret>(`gw:skill:${hash}`);
 
-export type RequestSecret = { nonce: string; request: string };
+export type RequestSecret = { nonce: string; request: string; photo?: string };
 export const saveRequest = (hash: string, r: RequestSecret) => write(`gw:req:${hash}`, r);
 export const loadRequest = (hash: string) => read<RequestSecret>(`gw:req:${hash}`);
 

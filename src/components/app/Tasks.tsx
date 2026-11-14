@@ -31,10 +31,10 @@ const distance = (m: number) => (m < 1000 ? `${Math.round(m)} m` : `${(m / 1000)
 const spotOf = (t: Task): Spot => ({ lat: t.lat_e6 / 1e6, lon: t.lon_e6 / 1e6 });
 const mapUrl = (s: Spot) => `https://www.openstreetmap.org/?mlat=${s.lat}&mlon=${s.lon}#map=17/${s.lat}/${s.lon}`;
 
-const hex = (buf: ArrayBuffer) => Array.from(new Uint8Array(buf), (b) => b.toString(16).padStart(2, "0")).join("");
+export const hex = (buf: ArrayBuffer) => Array.from(new Uint8Array(buf), (b) => b.toString(16).padStart(2, "0")).join("");
 
 /** Shrink a photo to at most 1280 px on its long side and return it as JPEG bytes. */
-async function shrink(file: File): Promise<Blob> {
+export async function shrink(file: File): Promise<Blob> {
   const img = await createImageBitmap(file);
   const scale = Math.min(1, 1280 / Math.max(img.width, img.height));
   const canvas = document.createElement("canvas");
@@ -44,7 +44,7 @@ async function shrink(file: File): Promise<Blob> {
   return new Promise((resolve, reject) => canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("Could not read that photo"))), "image/jpeg", 0.82));
 }
 
-const dataUrl = (blob: Blob) =>
+export const dataUrl = (blob: Blob) =>
   new Promise<string>((resolve, reject) => {
     const r = new FileReader();
     r.onload = () => resolve(r.result as string);

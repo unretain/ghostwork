@@ -9,6 +9,8 @@ export type AgentStatus = {
   llm: { mode: "live" | "off"; model: string };
   /** token id -> hash of the instructions the agent currently holds */
   skills: Record<string, string>;
+  /** token id -> the kinds of ability the card has, e.g. ["tool", "photos"] */
+  abilities?: Record<string, string[]>;
   jobsCompleted: number;
 };
 
@@ -40,8 +42,8 @@ async function post<T>(path: string, body: unknown): Promise<T> {
 export const deliverSkill = (tokenId: string, salt: string, prompt: string) =>
   post<{ sealed: boolean }>("/api/skill", { token_id: tokenId, salt, prompt });
 
-export const deliverJob = (jobId: string, nonce: string, request: string) =>
-  post<{ result: string; result_hash: string }>("/api/job", { job_id: jobId, nonce, request });
+export const deliverJob = (jobId: string, nonce: string, request: string, photo?: string) =>
+  post<{ result: string; result_hash: string }>("/api/job", { job_id: jobId, nonce, request, ...(photo ? { photo } : {}) });
 
 // ---- Radius: task proofs ----
 

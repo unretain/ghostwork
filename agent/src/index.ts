@@ -7,7 +7,8 @@ import { counters, HttpError, runJob, sealSkill, view } from "./jobs";
 import { llmInfo } from "./llm";
 import { checkProof, publicTask, type ChainTask } from "./radius";
 import { getProof } from "./store";
-import { skillHashes } from "./store";
+import { abilityKinds } from "./abilities";
+import { skillHashes, skillTexts } from "./store";
 
 const networkId = process.env.NEAR_NETWORK === "mainnet" ? "mainnet" : "testnet";
 
@@ -50,6 +51,8 @@ app.get("/api/status", (c) =>
     startedAt,
     llm: llmInfo(),
     skills: skillHashes(),
+    // which kinds of ability each card has (for example "tool", "postgres", "photos"), with none of their details
+    abilities: Object.fromEntries(Object.entries(skillTexts()).map(([id, text]) => [id, abilityKinds(text)])),
     ...counters,
   }),
 );
