@@ -2,6 +2,7 @@ import "./env";
 import { Hono } from "hono";
 import { serve } from "@hono/node-server";
 import { cors } from "hono/cors";
+import { FailoverRpcProvider, JsonRpcProvider } from "@near-js/providers";
 import { ShadeClient } from "@neardefi/shade-agent-js";
 import { counters, HttpError, runJob, sealSkill, view } from "./jobs";
 import { llmInfo } from "./llm";
@@ -21,8 +22,19 @@ if (!agentContractId || !sponsorAccountId || !sponsorPrivateKey) {
 
 // Inside a TEE the agent's NEAR key is generated in memory and never leaves it.
 // Locally, derivationPath keeps the account stable across restarts.
+// Several NEAR nodes, tried in order. One free public node is not enough: it refuses
+// requests from a shared cloud address once other tenants have used up its allowance.
+const rpcUrls = (
+  process.env.NEAR_RPC_URLS ||
+  (networkId === "mainnet"
+    ? "https://near.drpc.org,https://rpc.mainnet.near.org,https://free.rpc.fastnear.com"
+    : "https://near-testnet.drpc.org,https://rpc.testnet.near.org,https://test.rpc.fastnear.com")
+).split(",");
+const rpc = new FailoverRpcProvider(rpcUrls.map((url) => new JsonRpcProvider({ url: url.trim() })));
+
 const agent = await ShadeClient.create({
   networkId,
+  rpc,
   agentContractId,
   sponsor: { accountId: sponsorAccountId, privateKey: sponsorPrivateKey },
   derivationPath: sponsorPrivateKey,
@@ -35,6 +47,8 @@ console.log("Agent account ID:", agent.accountId());
 
 const startedAt = Date.now();
 let registered = false;
+// why the last registration attempt failed, for whoever runs the agent (never contains keys)
+let registrationError: string | null = null;
 
 const app = new Hono();
 app.use(cors());
@@ -48,6 +62,7 @@ app.get("/api/status", (c) =>
     contractId: agentContractId,
     network: networkId,
     registered,
+    ...(registrationError && !registered ? { registrationError } : {}),
     startedAt,
     llm: llmInfo(),
     skills: skillHashes(),
@@ -147,8 +162,12 @@ serve({ fetch: app.fetch, port });
 console.log(`Listening on :${port}`);
 
 // 300 Tgas calls (registration) reserve ~0.3 NEAR of gas up front at testnet prices.
-if ((await agent.balance()) < 0.6) {
-  await agent.fund(1);
+try {
+  if ((await agent.balance()) < 0.6) {
+    await agent.fund(1);
+  }
+} catch (error) {
+  registrationError = `Could not check or top up the agent account: ${String((error as Error).message).replace(/ed25519:[A-Za-z0-9]+/g, "[key]").slice(0, 160)}`;
 }
 
 // Register with the contract: in TEE mode this submits the attestation quote,
@@ -162,9 +181,13 @@ for (;;) {
         console.log("Agent registered");
         break;
       }
+      registrationError = "The contract did not accept the registration";
+    } else {
+      registrationError = "This agent account is not approved on the contract yet";
     }
   } catch (error) {
     console.error("Registration error:", (error as Error).message);
+    registrationError = String((error as Error).message).replace(/ed25519:[A-Za-z0-9]+/g, "[key]").slice(0, 200);
   }
   console.log("Waiting to be whitelisted:", agent.accountId());
   await new Promise((r) => setTimeout(r, 10_000));

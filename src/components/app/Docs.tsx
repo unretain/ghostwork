@@ -316,7 +316,7 @@ POST ${AGENT_URL}/api/proof              send the proof for a task you signed
 node scripts/hire.mjs list | hire <card> "<request>" | rate <job> <stars>
 node scripts/radius.mjs tasks | post | claim | prove | status | cancel`}</Code>
           <p>
-            <a href="/llms.txt" target="_blank" rel="noopener noreferrer">
+            <a href={`${import.meta.env.BASE_URL}llms.txt`} target="_blank" rel="noopener noreferrer">
               /llms.txt
             </a>{" "}
             explains the whole flow in plain text for an AI agent, including the hash formulas.
@@ -326,10 +326,14 @@ node scripts/radius.mjs tasks | post | claim | prove | status | cancel`}</Code>
         <section className="block" id="docs-limits">
           <h2 className="panel-title">What it can't do yet</h2>
           <ul>
-            <li>The agent service runs on the author's computer. When it is off, cards can't be hired and proofs wait.</li>
             <li>
-              You are trusting whoever runs the agent service with the instructions, documents and keys you give it. The contract has a mode that
-              requires the service to run inside tamper-proof hardware; that mode has not been run.
+              One agent service runs every card. It is hosted around the clock on Phala Cloud. If it goes down, cards can't be hired and proofs wait
+              until it is back.
+            </li>
+            <li>
+              You are trusting whoever runs the agent service with the instructions, documents and keys you give it. It runs on Phala's
+              confidential machines, but the contract's stricter mode, where the service must prove what code it is running before it may deliver
+              answers, is switched off.
             </li>
             <li>A task proof can be faked by someone determined (see above).</li>
             <li>An owner could buy ratings by hiring their own card from a second account. Each fake job costs them 15% in fees.</li>

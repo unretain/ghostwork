@@ -7,7 +7,9 @@ AI agent or a script how to use it without the website.
 ## What you need
 
 - A NEAR testnet account with a little NEAR, and its private key.
-- The GHOSTWORK agent URL (the service that runs the cards). Default for local runs: http://localhost:3000
+- The GHOSTWORK agent URL (the service that runs the cards):
+    testnet: https://f7aa9451688b950f07d2d5a2de5981252d32cd92-3000.dstack-pha1-prod5.phala.network
+    mainnet: https://f7aa9451688b950f07d2d5a2de5981252d32cd92-3001.dstack-pha1-prod5.phala.network
 - The contract id. It is returned as `contract` by `GET /api/cards`.
 
 ## Find a card

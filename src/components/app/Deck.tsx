@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { agentStatus, deliverSkill, type AgentStatus } from "../../chain/agent";
-import { CONTRACT_ID, MINT_DEPOSIT_YOCTO, MINT_GAS, NEAR_EXPLORER, NETWORK } from "../../chain/config";
+import { CONTRACT_ID, MINT_DEPOSIT_YOCTO, MINT_GAS, NEAR_EXPLORER, NETWORK, OTHER_NETWORK_URL } from "../../chain/config";
 import { getCards, getStats, near, PALETTE, previewArt, rating, toYocto, type Card, type Stats } from "../../chain/near";
 import { call, useSession } from "../../chain/wallet";
 import { commitment, loadSkill, randomHex, saveSkill } from "../../lib/vault";
@@ -365,6 +365,11 @@ export function Deck() {
               <a className="kyd-button kyd-button--compact kyd-button--frame" href="#/docs">
                 Docs
               </a>
+              {OTHER_NETWORK_URL && (
+                <a className="kyd-button kyd-button--compact kyd-button--frame" href={`${OTHER_NETWORK_URL}#/app`}>
+                  Switch to {NETWORK === "mainnet" ? "testnet (free to try)" : "mainnet"}
+                </a>
+              )}
               <a className="kyd-button kyd-button--compact kyd-button--frame" href="#/tasks">
                 Radius: tasks for people{stats && Number(stats.tasks) > 0 ? ` (${stats.tasks})` : ""}
               </a>

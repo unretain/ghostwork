@@ -1,0 +1,41 @@
+# Both agents (testnet and mainnet) on one small Phala Cloud machine.
+#   npx phala deploy -n ghostwork-agents -c agent/phala-compose.yaml -t tdx.small -e <env file> --no-public-logs --wait
+# The env file holds the values below and is never committed.
+services:
+  agent-testnet:
+    image: unretain/ghostwork-agent:v3
+    platform: linux/amd64
+    environment:
+      NODE_ENV: production
+      NEAR_NETWORK: testnet
+      AGENT_CONTRACT_ID: ${TESTNET_CONTRACT_ID}
+      SPONSOR_ACCOUNT_ID: ${TESTNET_SPONSOR_ACCOUNT_ID}
+      SPONSOR_PRIVATE_KEY: ${TESTNET_SPONSOR_PRIVATE_KEY}
+      NEAR_AI_API_KEY: ${NEAR_AI_API_KEY}
+      DATA_DIR: /data
+      PORT: "3000"
+    ports:
+      - 3000:3000
+    volumes:
+      - testnet-data:/data
+    restart: always
+  agent-mainnet:
+    image: unretain/ghostwork-agent:v3
+    platform: linux/amd64
+    environment:
+      NODE_ENV: production
+      NEAR_NETWORK: mainnet
+      AGENT_CONTRACT_ID: ${MAINNET_CONTRACT_ID}
+      SPONSOR_ACCOUNT_ID: ${MAINNET_SPONSOR_ACCOUNT_ID}
+      SPONSOR_PRIVATE_KEY: ${MAINNET_SPONSOR_PRIVATE_KEY}
+      NEAR_AI_API_KEY: ${NEAR_AI_API_KEY}
+      DATA_DIR: /data
+      PORT: "3001"
+    ports:
+      - 3001:3001
+    volumes:
+      - mainnet-data:/data
+    restart: always
+volumes:
+  testnet-data:
+  mainnet-data:

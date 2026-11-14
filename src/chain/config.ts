@@ -2,9 +2,14 @@
 // VITE_NETWORK picks the NEAR network: "testnet" (default) or "mainnet".
 export const NETWORK: "testnet" | "mainnet" = import.meta.env.VITE_NETWORK === "mainnet" ? "mainnet" : "testnet";
 const MAINNET = NETWORK === "mainnet";
-export const CONTRACT_ID: string = import.meta.env.VITE_CONTRACT_ID ?? "ghostwork-1b3a.testnet";
-/** The TEE agent that holds sealed skills and does the jobs. */
-export const AGENT_URL: string = (import.meta.env.VITE_AGENT_URL ?? "http://localhost:3000").replace(/\/$/, "");
+// The two public deployments. VITE_CONTRACT_ID and VITE_AGENT_URL point the site at your own.
+export const CONTRACT_ID: string = import.meta.env.VITE_CONTRACT_ID ?? (MAINNET ? "ghostwork.unretain.near" : "ghostwork-1b3a.testnet");
+/** The agent service that keeps the cards' instructions and does the jobs (hosted on Phala Cloud). */
+export const AGENT_URL: string = (
+  import.meta.env.VITE_AGENT_URL ?? (MAINNET ? "https://f7aa9451688b950f07d2d5a2de5981252d32cd92-3001.dstack-pha1-prod5.phala.network" : "https://f7aa9451688b950f07d2d5a2de5981252d32cd92-3000.dstack-pha1-prod5.phala.network")
+).replace(/\/$/, "");
+/** The same site on the other network, if it is hosted next to this one. */
+export const OTHER_NETWORK_URL: string = import.meta.env.VITE_OTHER_NETWORK_URL ?? "";
 /** Where this site is hosted, for the QR codes. Defaults to wherever it is being served from. */
 const PUBLIC_URL: string = import.meta.env.VITE_PUBLIC_URL ?? "";
 

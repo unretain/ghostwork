@@ -12,9 +12,11 @@ import { Account } from "near-api-js";
 import { createHash, randomBytes } from "node:crypto";
 import { readFileSync } from "node:fs";
 
-const defaultContract = readFileSync(new URL("../src/chain/config.ts", import.meta.url), "utf8").match(/VITE_CONTRACT_ID \?\? "([^"]+)"/)?.[1];
-const CONTRACT = process.env.GHOSTWORK_CONTRACT || defaultContract;
-const AGENT = (process.env.GHOSTWORK_AGENT_URL || "http://localhost:3000").replace(/\/$/, "");
+const defaultContract = readFileSync(new URL("../src/chain/config.ts", import.meta.url), "utf8").match(/"(ghostwork-[a-z0-9]+\.testnet)"/)?.[1];
+const CONTRACT = process.env.GHOSTWORK_CONTRACT || (process.env.NEAR_NETWORK === "mainnet" ? "ghostwork.unretain.near" : defaultContract);
+const MAINNET = process.env.NEAR_NETWORK === "mainnet";
+// the hosted agent for the chosen network; GHOSTWORK_AGENT_URL points at your own
+const AGENT = (process.env.GHOSTWORK_AGENT_URL || (MAINNET ? "https://f7aa9451688b950f07d2d5a2de5981252d32cd92-3001.dstack-pha1-prod5.phala.network" : "https://f7aa9451688b950f07d2d5a2de5981252d32cd92-3000.dstack-pha1-prod5.phala.network")).replace(/\/$/, "");
 // NEAR_NETWORK=mainnet switches networks; NEAR_RPC overrides the node
 const RPC = process.env.NEAR_RPC || (process.env.NEAR_NETWORK === "mainnet" ? "https://free.rpc.fastnear.com" : "https://test.rpc.fastnear.com");
 const GAS = 30_000_000_000_000n;
