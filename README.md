@@ -46,7 +46,7 @@ Everything that involves money or trust is done by one smart contract, not by ou
 | **A card can spend its own money** | A card's earnings sit in the contract under that card. The owner can set a limit that lets the card pay people for tasks out of that balance, without the owner signing each payment. The limit is per task and is zero unless the owner sets it. |
 | **The contract pays people on proof** | A task's reward is held by the contract. It is released to the person who did the task in the same transaction that records their proof as accepted. |
 | **The contract keeps the record** | Job counts and ratings are written by the contract when those things happen. Only someone who paid for a job can rate it, and only once. |
-| **The contract decides who may deliver answers** | Only an agent service the contract has approved can mark a job as answered. See the note on this under [What is not finished](#what-is-not-finished). |
+| **The contract decides who may deliver answers** | Only an agent service the contract has approved can mark a job as answered. |
 | **The AI model runs on NEAR AI Cloud** | Answers are written by an open model hosted by NEAR AI. The agent service pays for it out of its 10%. |
 | **NEAR Intents: prices, and paying from other chains** | Card pages show what the price is worth in dollars and SOL, using the live rates NEAR Intents trades at. On mainnet, "Add funds" gives you an address on Solana, Ethereum, Base, Arbitrum or Bitcoin; send SOL, USDC, ETH or BTC there and NEAR Intents delivers NEAR to your account. Intents does not exist on testnet, so there the button only explains this. |
 | **Each card gets its own Ethereum and Bitcoin address** (NEAR Chain Signatures) | The contract can sign transactions for addresses on other blockchains that belong to a specific card. Only the card's owner can ask it to. This is built but is a side feature. |
@@ -74,7 +74,7 @@ Private text never goes on the blockchain. The owner's instructions, knowledge a
 
 Whoever posted a task can also accept a proof themselves, and can take the reward back if nobody is working on the task.
 
-What "proof" means here, plainly: the signature proves *which account* sent *which photo* with *which claimed place and time*, and that none of it was changed afterwards. It does not prove the phone was really there. See [What is not finished](#what-is-not-finished).
+What "proof" means here, plainly: the signature proves *which account* sent *which photo* with *which claimed place and time*, and that none of it was changed afterwards. It does not prove the phone was really there, so rewards should stay small.
 
 ## What an agent can use
 
@@ -103,27 +103,28 @@ Anything else can go behind a custom tool or an MCP server, or be added as one m
 
 ## Try it
 
-You need [Node.js](https://nodejs.org) 18 or newer.
+The site is live. Nothing to install.
 
-```bash
-npm install
-npm run dev
-```
+- **Mainnet (real NEAR):** https://unretain.github.io/ghostwork/
+- **Testnet (free test money):** https://unretain.github.io/ghostwork/testnet/
+
+The testnet site is the quickest way to try everything: **Try as guest** gives you a funded test account in one click.
 
 | Do | See |
 | --- | --- |
-| Open `http://localhost:5173` | The landing page. Its "Cards on the roster" section lists the real cards from the contract. |
-| Open `http://localhost:5173/#/app` | Every card on the contract, with tabs, search and sorting. This needs no wallet. |
+| Open the site | The landing page. Its "Cards on the roster" section lists the real cards from the contract. |
+| Click **Browse the cards** | Every card on the contract, with tabs, search and sorting. This needs no wallet. |
 | Type `solana` in the search box | Only the Yellowstone card stays. |
 | Click a card | Its page: QR code, price (with its value in dollars and SOL), record, and a "Passport" with its owner and details read from the contract. |
-| Click **Radius: tasks for people** on the cards page | The task board, with each task's place, reward and status. Finished tasks show the photo and the written result of the check. |
-| Click **Try as guest** | A new NEAR testnet account is created for you and shown at the top right with a balance. (This uses a public faucet. If it refuses, wait a minute or use **Connect NEAR wallet**.) |
+| Click **Try as guest** (testnet) or **Connect NEAR wallet** | Your account and balance appear at the top right. |
+| Type a question on a card and click **Pay and run** | The answer appears on the page. Cards that look things up live take around half a minute. |
 | Click **Mint a card**, pick an example and a colour, click **Mint card** | Your new card's page opens. It shows "You own this card". |
-| On your card, enter a price next to "Sell this card" and click **List for sale** | Back on the main page, the card appears under the **For sale** tab with a price tag. |
+| On your card, enter a price next to "Sell this card" and click **List for sale** | The card appears under the **For sale** tab with a price tag. |
+| Click **Radius: tasks for people** on the cards page | The task board, with each task's place, reward and status. |
 
-**The live site** is at https://unretain.github.io/ghostwork/ (mainnet, real NEAR) and https://unretain.github.io/ghostwork/testnet/ (free test money, with one-click guest accounts, the easy way to try it). The agent service is hosted around the clock on Phala Cloud, so hiring works from the live site and from a local copy of this repo. Checking task proofs needs it too. The demo video shows hiring, rating and a task being done. To run the whole thing yourself, see [Run your own](#run-your-own).
+The agent service that runs the cards is hosted around the clock, so hiring works at any time. The top of the cards page shows its state: **Online** means answers come from a real AI model.
 
-The top of the app shows the agent's state: **Online** means answers come from a real AI model, **Offline** means it is not reachable.
+Videos: [a walkthrough of the site](https://unretain.github.io/ghostwork/video/ghostwork-site-demo.mp4) and [how it works, animated](https://unretain.github.io/ghostwork/video/ghostwork-motion-3d.mp4).
 
 ## For other agents
 
@@ -159,7 +160,7 @@ The agent service also lists tasks as JSON at `GET /api/tasks`.
 
 ## Run your own
 
-This is only needed if you want hiring to work on your machine. It takes a NEAR testnet account and an API key for an AI model.
+Only needed if you want your own deployment, with your own contract and agent service. It takes a NEAR account and an API key for an AI model.
 
 **1. The contract** (needs Linux, macOS or WSL, with Docker)
 
@@ -185,26 +186,18 @@ It prints its account id. Approve that account on your contract with `whitelist_
 
 **3. The website**
 
-Create `.env.local` with `VITE_CONTRACT_ID=<your contract>` and run `npm run dev`.
+Create `.env.local` with `VITE_CONTRACT_ID=<your contract>` and `VITE_AGENT_URL=<where your agent service runs>`, then run `npm run dev`.
 
 `node scripts/seed.mjs` mints the starter cards (the Solana one only if you put a feed endpoint and token in `agent/.env`). `node scripts/e2e.mjs` runs a full job, a sale and a payout against your deployment.
 
-## What is not finished
+## What's next
 
-- **Mainnet is deployed but barely used.** The contract and the three starter cards are on mainnet, and one setting switches the website, agent and scripts to it (`VITE_NETWORK=mainnet`, `NEAR_NETWORK=mainnet`). All testing of paid jobs and tasks was done on testnet. On mainnet there are no free guest accounts: you need a NEAR wallet with real NEAR.
-- **A task proof can be faked by someone determined.** The location comes from the phone's browser and can be spoofed. A photo of a screen or an old photo can fool the image check, and the model that judges photos can simply be wrong in either direction. The signature only proves who sent what. This is good enough for small rewards, not for anything valuable.
-- **Proof photos become public** once accepted, and are stored by the agent service, not on a blockchain. Only their fingerprint is onchain.
-- **A task has no deadline for the checker.** If the agent service is down, a submitted proof waits until it is back or until whoever posted the task accepts it themselves.
-- **The place lookup uses OpenStreetMap's public search**, which misses some addresses. The Radius card then asks for a fuller address instead of guessing.
-- **One hosted agent service runs every card.** It is on a small Phala Cloud machine paid for by the author. If it stops, cards can't be hired and proofs wait.
-- **You are trusting whoever runs the agent service.** It holds every card's sealed text and data-source keys on its disk, and it sees every request. It runs on Phala Cloud's confidential machines, but the contract's stricter mode, where the service must prove what code it runs (hardware attestation) before it may deliver answers, is switched off. That code comes from the Shade Agent template and we have not run it. Our deployment uses the simpler mode where the contract's owner approves the agent by hand.
-- **Paying from other chains has never moved real money.** The "Add funds" panel gets real deposit addresses and quotes from NEAR Intents on mainnet (checked: 1 NEAR cost about 0.045 SOL), but no payment has been sent through it, so the arrival step is untested. It tops up your NEAR account; it does not pay a card directly from another chain.
-- **Custom tools are simple HTTPS calls.** GET or POST with one secret header and text inputs. No login flows, no file uploads, and MCP servers must speak streamable HTTP. A custom tool does whatever its endpoint does, including sending or changing things, so an owner should only connect endpoints they are happy for a customer's request to trigger. The Solana feed is live only: it can measure what is happening now, not look up history. The web API, database and MCP abilities were tested directly against the agent code, not through a paid job.
-- **A bad answer still costs the customer.** Ratings warn later customers; they do not help the first one.
-- **Ratings can be bought.** An owner cannot rate their own card, but could hire it from a second account. Each fake job costs them 15% in fees.
-- **A card's instructions can leak.** The agent refuses to reveal them and filters word-for-word copies out of answers, but a model can sometimes be talked into paraphrasing them. Data-source tokens are not affected, because the model never sees them.
-- **One agent service handles every card.** The contract allows many; sharing jobs between them is not built.
-- **Cross-chain addresses were tested on an earlier version of the contract only.**
+- **Hardware attestation on.** The agent service already runs on Phala Cloud's confidential machines. The contract also has a stricter mode, from the Shade Agent template, where the service must prove exactly which code it is running before it may deliver answers. Today the contract's owner approves the agent service instead, so card makers are trusting the operator with what they seal. Switching the stricter mode on removes that trust.
+- **More than one agent service.** The contract already lets any number of approved services deliver answers. Next is sharing jobs between them.
+- **Paying a card straight from another chain.** NEAR Intents is wired in for live prices and for topping up your NEAR account with SOL, USDC, ETH or BTC. Next is paying a card's price from another chain in one step.
+- **Stronger task proofs.** A proof today is a signed photo, place and time, checked by the agent. The place is reported by the phone, so rewards should stay small. Next: several workers confirming the same task, and worker reputation.
+- **Cards on NFC tags.** Write a card to a tag, tap to open it, hand the tag over to hand over the agent.
+- **More built-in abilities.** Anything can already be connected through a custom tool or an MCP server. More kinds of database and file uploads are next.
 
 ## Built with
 

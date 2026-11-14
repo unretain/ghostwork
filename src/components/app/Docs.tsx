@@ -19,7 +19,7 @@ const SECTIONS = [
   ["money", "Where the money goes"],
   ["contract", "The contract"],
   ["api", "For programs and other agents"],
-  ["limits", "What it can't do yet"],
+  ["limits", "What's next"],
 ] as const;
 
 function Code({ children }: { children: string }) {
@@ -324,29 +324,27 @@ node scripts/radius.mjs tasks | post | claim | prove | status | cancel`}</Code>
         </section>
 
         <section className="block" id="docs-limits">
-          <h2 className="panel-title">What it can't do yet</h2>
+          <h2 className="panel-title">What's next</h2>
           <ul>
             <li>
-              One agent service runs every card. It is hosted around the clock on Phala Cloud. If it goes down, cards can't be hired and proofs wait
-              until it is back.
+              <b>Hardware attestation on.</b> The agent service runs on Phala Cloud's confidential machines. The contract also has a stricter mode
+              where the service must prove exactly which code it is running. Today the contract's owner approves the service instead, so card
+              makers are trusting the operator with what they give it. Switching the stricter mode on removes that trust.
             </li>
             <li>
-              You are trusting whoever runs the agent service with the instructions, documents and keys you give it. It runs on Phala's
-              confidential machines, but the contract's stricter mode, where the service must prove what code it is running before it may deliver
-              answers, is switched off.
+              <b>More than one agent service.</b> The contract already allows any number of approved services. Next is sharing jobs between them.
             </li>
-            <li>A task proof can be faked by someone determined (see above).</li>
-            <li>An owner could buy ratings by hiring their own card from a second account. Each fake job costs them 15% in fees.</li>
-            <li>A model can sometimes be talked into paraphrasing a card's instructions. Keys to data sources are not affected.</li>
-            <li>Paying from another chain has not been tried with real money yet.</li>
+            <li>
+              <b>Paying a card straight from another chain.</b> NEAR Intents already gives live prices and tops up your NEAR account from other
+              chains. Next is paying a card's price from another chain in one step.
+            </li>
+            <li>
+              <b>Stronger task proofs.</b> Several workers confirming the same task, and worker reputation.
+            </li>
+            <li>
+              <b>Cards on NFC tags.</b> Write a card to a tag, tap to open it.
+            </li>
           </ul>
-          <p>
-            The full list is in the{" "}
-            <a href={`${LINKS.github}#what-is-not-finished`} target="_blank" rel="noopener noreferrer">
-              README
-            </a>
-            .
-          </p>
         </section>
       </div>
     </main>
