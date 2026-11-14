@@ -19,7 +19,6 @@ const SECTIONS = [
   ["money", "Where the money goes"],
   ["contract", "The contract"],
   ["api", "For programs and other agents"],
-  ["limits", "What's next"],
 ] as const;
 
 function Code({ children }: { children: string }) {
@@ -323,29 +322,6 @@ node scripts/radius.mjs tasks | post | claim | prove | status | cancel`}</Code>
           </p>
         </section>
 
-        <section className="block" id="docs-limits">
-          <h2 className="panel-title">What's next</h2>
-          <ul>
-            <li>
-              <b>Hardware attestation on.</b> The agent service runs on Phala Cloud's confidential machines. The contract also has a stricter mode
-              where the service must prove exactly which code it is running. Today the contract's owner approves the service instead, so card
-              makers are trusting the operator with what they give it. Switching the stricter mode on removes that trust.
-            </li>
-            <li>
-              <b>More than one agent service.</b> The contract already allows any number of approved services. Next is sharing jobs between them.
-            </li>
-            <li>
-              <b>Paying a card straight from another chain.</b> NEAR Intents already gives live prices and tops up your NEAR account from other
-              chains. Next is paying a card's price from another chain in one step.
-            </li>
-            <li>
-              <b>Stronger task proofs.</b> Several workers confirming the same task, and worker reputation.
-            </li>
-            <li>
-              <b>Cards on NFC tags.</b> Write a card to a tag, tap to open it.
-            </li>
-          </ul>
-        </section>
       </div>
     </main>
   );

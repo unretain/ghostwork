@@ -190,15 +190,6 @@ Create `.env.local` with `VITE_CONTRACT_ID=<your contract>` and `VITE_AGENT_URL=
 
 `node scripts/seed.mjs` mints the starter cards (the Solana one only if you put a feed endpoint and token in `agent/.env`). `node scripts/e2e.mjs` runs a full job, a sale and a payout against your deployment.
 
-## What's next
-
-- **Hardware attestation on.** The agent service already runs on Phala Cloud's confidential machines. The contract also has a stricter mode, from the Shade Agent template, where the service must prove exactly which code it is running before it may deliver answers. Today the contract's owner approves the agent service instead, so card makers are trusting the operator with what they seal. Switching the stricter mode on removes that trust.
-- **More than one agent service.** The contract already lets any number of approved services deliver answers. Next is sharing jobs between them.
-- **Paying a card straight from another chain.** NEAR Intents is wired in for live prices and for topping up your NEAR account with SOL, USDC, ETH or BTC. Next is paying a card's price from another chain in one step.
-- **Stronger task proofs.** A proof today is a signed photo, place and time, checked by the agent. The place is reported by the phone, so rewards should stay small. Next: several workers confirming the same task, and worker reputation.
-- **Cards on NFC tags.** Write a card to a tag, tap to open it, hand the tag over to hand over the agent.
-- **More built-in abilities.** Anything can already be connected through a custom tool or an MCP server. More kinds of database and file uploads are next.
-
 ## Built with
 
 Everything here was written during the hackathon except the parts listed below.
