@@ -476,3 +476,203 @@ fn test_mint_rejects_unknown_colour() {
     testing_env!(get_context_with_deposit(accounts(3), false, Some(ONE_NEAR)).build());
     contract.mint_card("Wraith".into(), "Skill".into(), "".into(), U128(PRICE), None, Some("Mauve".into()));
 }
+
+// ---- Radius: tasks for people ----
+
+const REWARD: u128 = 200_000_000_000_000_000_000_000; // 0.2 NEAR
+
+// accounts(1) posts task 0 with its own money
+fn post(contract: &mut Contract) -> U64 {
+    testing_env!(get_context_with_deposit(accounts(1), false, Some(NearToken::from_yoctonear(REWARD))).build());
+    contract.post_task("Photo of the door".into(), "Take a photo of the front door sign.".into(), 41_800_000, -87_900_000, 200)
+}
+
+fn claim_and_submit(contract: &mut Contract, id: U64, worker: AccountId) {
+    testing_env!(get_context(worker.clone(), false).build());
+    contract.claim_task(id);
+    testing_env!(get_context(worker, false).build());
+    contract.submit_proof(id, hash('d'));
+}
+
+#[test]
+fn test_task_paid_on_approved_proof() {
+    let mut contract = setup_card();
+    let id = post(&mut contract);
+    claim_and_submit(&mut contract, id, accounts(4));
+    testing_env!(get_context(accounts(2), false).build());
+    assert!(contract.settle_task(id, true, hash('e')).is_some());
+    let task = contract.get_task(id).unwrap();
+    assert_eq!(task.status, TaskStatus::Paid);
+    assert_eq!(task.worker, Some(accounts(4)));
+    assert_eq!(task.proof_hash, Some(hash('d')));
+    let stats = contract.get_stats();
+    assert_eq!(stats.tasks_paid.0, 1);
+    assert_eq!(stats.task_volume.0, REWARD);
+}
+
+#[test]
+fn test_task_rejected_proof_goes_back_to_worker() {
+    let mut contract = setup_card();
+    let id = post(&mut contract);
+    claim_and_submit(&mut contract, id, accounts(4));
+    testing_env!(get_context(accounts(2), false).build());
+    assert!(contract.settle_task(id, false, hash('e')).is_none());
+    let task = contract.get_task(id).unwrap();
+    assert_eq!(task.status, TaskStatus::Claimed);
+    assert_eq!(task.proof_hash, None);
+    assert_eq!(task.rejections, 1);
+    // the same worker can try again
+    testing_env!(get_context(accounts(4), false).build());
+    contract.submit_proof(id, hash('f'));
+}
+
+#[test]
+#[should_panic(expected = "Caller is not a verified agent")]
+fn test_task_settle_requires_agent() {
+    let mut contract = setup_card();
+    let id = post(&mut contract);
+    claim_and_submit(&mut contract, id, accounts(4));
+    testing_env!(get_context(accounts(4), false).build());
+    let _ = contract.settle_task(id, true, hash('e'));
+}
+
+#[test]
+#[should_panic(expected = "Reward must be at least")]
+fn test_task_reward_too_low() {
+    let mut contract = setup_card();
+    testing_env!(get_context_with_deposit(accounts(1), false, Some(NearToken::from_yoctonear(1))).build());
+    contract.post_task("t".into(), "d".into(), 0, 0, 100);
+}
+
+#[test]
+#[should_panic(expected = "You posted this task")]
+fn test_task_poster_cannot_claim() {
+    let mut contract = setup_card();
+    let id = post(&mut contract);
+    testing_env!(get_context(accounts(1), false).build());
+    contract.claim_task(id);
+}
+
+#[test]
+#[should_panic(expected = "Someone is already on this task")]
+fn test_task_claimed_once() {
+    let mut contract = setup_card();
+    let id = post(&mut contract);
+    testing_env!(get_context(accounts(4), false).build());
+    contract.claim_task(id);
+    testing_env!(get_context(accounts(5), false).build());
+    contract.claim_task(id);
+}
+
+#[test]
+#[should_panic(expected = "Only the person who claimed the task can submit proof")]
+fn test_task_proof_only_from_worker() {
+    let mut contract = setup_card();
+    let id = post(&mut contract);
+    testing_env!(get_context(accounts(4), false).build());
+    contract.claim_task(id);
+    testing_env!(get_context(accounts(5), false).build());
+    contract.submit_proof(id, hash('d'));
+}
+
+#[test]
+fn test_task_poster_can_approve() {
+    let mut contract = setup_card();
+    let id = post(&mut contract);
+    claim_and_submit(&mut contract, id, accounts(4));
+    testing_env!(get_context(accounts(1), false).build());
+    let _ = contract.approve_task(id);
+    assert_eq!(contract.get_task(id).unwrap().status, TaskStatus::Paid);
+}
+
+#[test]
+fn test_task_cancel_refunds_open_task() {
+    let mut contract = setup_card();
+    let id = post(&mut contract);
+    testing_env!(get_context(accounts(1), false).build());
+    assert!(contract.cancel_task(id).is_some());
+    assert_eq!(contract.get_task(id).unwrap().status, TaskStatus::Cancelled);
+}
+
+#[test]
+#[should_panic(expected = "Someone is working on this task")]
+fn test_task_cancel_blocked_while_claimed() {
+    let mut contract = setup_card();
+    let id = post(&mut contract);
+    testing_env!(get_context(accounts(4), false).build());
+    contract.claim_task(id);
+    testing_env!(get_context(accounts(1), false).build());
+    contract.cancel_task(id);
+}
+
+// card 0 (owner accounts(3)) gets 1 NEAR in its treasury and a 0.3 NEAR task budget
+fn fund_card_for_tasks(contract: &mut Contract) {
+    testing_env!(get_context_with_deposit(accounts(3), false, Some(ONE_NEAR)).build());
+    contract.fund_card("0".into());
+    testing_env!(get_context(accounts(3), false).build());
+    contract.set_task_budget("0".into(), U128(300_000_000_000_000_000_000_000));
+}
+
+fn card_post(contract: &mut Contract, reward: u128) -> U64 {
+    testing_env!(get_context(accounts(2), false).build());
+    contract.card_post_task("0".into(), "Photo of the door".into(), "Front door sign.".into(), 41_800_000, -87_900_000, 200, U128(reward))
+}
+
+#[test]
+fn test_card_pays_for_task_from_its_treasury() {
+    let mut contract = setup_card();
+    fund_card_for_tasks(&mut contract);
+    let id = card_post(&mut contract, REWARD);
+    let card = contract.get_card("0".into()).unwrap();
+    assert_eq!(card.balance.0, ONE_NEAR.as_yoctonear() - REWARD);
+    let task = contract.get_task(id).unwrap();
+    assert_eq!(task.card.as_deref(), Some("0"));
+    assert_eq!(task.poster, accounts(3));
+    // cancelling returns the money to the card, not to a person
+    testing_env!(get_context(accounts(3), false).build());
+    assert!(contract.cancel_task(id).is_none());
+    assert_eq!(contract.get_card("0".into()).unwrap().balance.0, ONE_NEAR.as_yoctonear());
+}
+
+#[test]
+#[should_panic(expected = "Reward is above this card's task budget")]
+fn test_card_task_over_budget() {
+    let mut contract = setup_card();
+    fund_card_for_tasks(&mut contract);
+    card_post(&mut contract, 400_000_000_000_000_000_000_000);
+}
+
+#[test]
+#[should_panic(expected = "Reward is above this card's task budget")]
+fn test_card_task_needs_owner_budget() {
+    let mut contract = setup_card();
+    testing_env!(get_context_with_deposit(accounts(3), false, Some(ONE_NEAR)).build());
+    contract.fund_card("0".into());
+    card_post(&mut contract, REWARD);
+}
+
+#[test]
+#[should_panic(expected = "The card's treasury can't cover this reward")]
+fn test_card_task_needs_treasury() {
+    let mut contract = setup_card();
+    testing_env!(get_context(accounts(3), false).build());
+    contract.set_task_budget("0".into(), U128(300_000_000_000_000_000_000_000));
+    card_post(&mut contract, REWARD);
+}
+
+#[test]
+#[should_panic(expected = "Caller is not a verified agent")]
+fn test_card_task_requires_agent() {
+    let mut contract = setup_card();
+    fund_card_for_tasks(&mut contract);
+    testing_env!(get_context(accounts(4), false).build());
+    contract.card_post_task("0".into(), "t".into(), "d".into(), 0, 0, 100, U128(REWARD));
+}
+
+#[test]
+#[should_panic(expected = "Only the card owner can do this")]
+fn test_task_budget_only_owner() {
+    let mut contract = setup_card();
+    testing_env!(get_context(accounts(4), false).build());
+    contract.set_task_budget("0".into(), U128(REWARD));
+}

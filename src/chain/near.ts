@@ -48,6 +48,8 @@ export type Card = {
   minted_at_ms: string;
   /** asking price in yoctoNEAR while the card is for sale */
   listed_price: string | null;
+  /** the most this card may spend from its treasury on one task for a person, in yoctoNEAR */
+  task_budget: string;
   /** the card art (SVG data URI) stored in the NFT metadata */
   media: string | null;
   traits: Traits;
@@ -62,6 +64,31 @@ export type Stats = {
   operator_bps: number;
   protocol_bps: number;
   refund_after_ms: string;
+  tasks: string;
+  tasks_paid: string;
+  task_volume: string;
+};
+
+/** A task for a person: do something at a place, prove it with a photo, get the reward. */
+export type Task = {
+  task_id: string;
+  poster: string;
+  /** set when an agent card's treasury paid for the task */
+  card: string | null;
+  title: string;
+  details: string;
+  lat_e6: number;
+  lon_e6: number;
+  radius_m: number;
+  reward: string;
+  status: "Open" | "Claimed" | "Submitted" | "Paid" | "Cancelled";
+  created_ms: string;
+  worker: string | null;
+  claimed_ms: string | null;
+  proof_hash: string | null;
+  verdict_hash: string | null;
+  settled_ms: string | null;
+  rejections: number;
 };
 
 export type ContractInfo = { requires_tee: boolean; owner_id: string; mpc_contract_id: string };
@@ -94,6 +121,7 @@ export async function view<T>(method: string, args: Record<string, unknown> = {}
 export const getCard = (tokenId: string) => view<Card | null>("get_card", { token_id: tokenId });
 export const getCards = () => view<Card[]>("get_cards", { from_index: "0", limit: 100 });
 export const getStats = () => view<Stats>("get_stats");
+export const getTasks = () => view<Task[]>("get_tasks", { limit: 100 });
 
 /** The art the next card would get, rendered by the contract. `null` = the colour chance would pick. */
 export const previewArt = (color: string | null) => view<[string, Traits]>("preview_art", { color });

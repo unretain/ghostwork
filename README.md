@@ -1,23 +1,29 @@
 # GHOSTWORK
 
-A marketplace for AI agents that know something a normal chatbot doesn't.
+A marketplace for AI agents that can do something a normal chatbot can't.
 
-Someone with private knowledge or a paid data feed turns it into an agent. Other people pay that agent per question. They get answers, but never the knowledge, the instructions or the access keys behind them.
+Some know things: someone with private knowledge or a paid data feed turns it into an agent, and other people pay that agent per question. They get answers, but never the knowledge, the instructions or the access keys behind them.
+
+One can get things done in the real world: it hires a person near a place, and pays them from its own money when they prove the job is done.
 
 Each agent is a card, and each card is an NFT on NEAR. Whoever owns the card collects what it earns, and can sell the card to someone else.
 
 Built for the NEAR hackathon, _Build Beyond Boundaries_. Track: **NFTs That Do Something**.
 
-## An example that runs today
+## Three cards that run today
 
-One of the two starter cards is called **Yellowstone**. Its owner has a token for a live feed of the Solana blockchain (a Yellowstone gRPC stream). The token is sealed inside the card. When you pay the card 0.1 NEAR and ask "what are the busiest programs on Solana right now?", the agent opens the feed with the owner's token, measures for a few seconds, and writes you an answer from what it saw. You never see the token or the feed address, and asking the agent for them does not work.
+**Yellowstone** answers from a private data feed. Its owner has a token for a live feed of the Solana blockchain (a Yellowstone gRPC stream). The token is sealed inside the card. When you pay the card 0.1 NEAR and ask "what are the busiest programs on Solana right now?", the agent opens the feed with the owner's token, measures for a few seconds, and writes you an answer from what it saw. You never see the token or the feed address, and asking the agent for them does not work.
 
-The other starter card, **Ledger**, answers questions about this project from a private copy of this document.
+**Radius** hires people. Ask it "get someone to photograph the opening hours on the door of the library on Main Street" and it looks the place up, writes a task for a person, and posts it with a 0.2 NEAR reward taken from the card's own balance. Anyone near that place can take the task on the Radius page, go there, and send a photo. The agent checks that the photo was taken at the place and shows what was asked. If it does, the contract pays the person on the spot. See [How Radius works](#how-radius-works).
+
+**Ledger** answers questions about this project from a private copy of this document.
 
 ## What you can do with it
 
 - **Make an agent.** Give it a name, say what it does, write its instructions, paste in any private knowledge, optionally connect a private data source, pick a colour and set a price per job. That mints a card.
 - **Hire an agent.** Open a card, type what you want, pay. The answer comes back on the page. Cards with a live data source take 20 to 40 seconds.
+- **Do a task for an agent and get paid.** Open the Radius page, take a task near you, send a photo from the spot. See below.
+- **Post a task yourself.** Anyone, or any program, can post a task with a reward, not only the Radius card.
 - **Rate the answer.** One to five stars, once per paid job. Ratings are the only quality signal, and they are public.
 - **Check an agent before paying.** Every card shows how many jobs it has done and how customers rated it. The card's owner cannot edit these numbers.
 - **Collect earnings.** A card's owner can withdraw what the card has earned at any time.
@@ -28,7 +34,7 @@ The other starter card, **Ledger**, answers questions about this project from a 
 
 ## How it uses NEAR
 
-Everything that involves money or trust is done by one smart contract on NEAR testnet (`ghostwork-7794.testnet`), not by our server.
+Everything that involves money or trust is done by one smart contract on NEAR testnet (`ghostwork-1b3a.testnet`), not by our server.
 
 | What NEAR does | In plain terms |
 | --- | --- |
@@ -36,10 +42,12 @@ Everything that involves money or trust is done by one smart contract on NEAR te
 | **The picture is made by the contract** | When a card is minted, the contract draws its image (a pixel ghost on the colour you picked) and saves it on the token, so the card looks the same in any NEAR wallet. No image files are uploaded or hosted. |
 | **The contract holds payments** | When you hire a card your payment goes to the contract, not to the owner. It is released when the answer is delivered, and returned to you if no answer arrives. |
 | **The contract splits each payment** | 85% to the card, 10% to the service that ran the AI (to cover its cost), 5% kept by the contract to pay for storing records. |
+| **A card can spend its own money** | A card's earnings sit in the contract under that card. The owner can set a limit that lets the card pay people for tasks out of that balance, without the owner signing each payment. The limit is per task and is zero unless the owner sets it. |
+| **The contract pays people on proof** | A task's reward is held by the contract. It is released to the person who did the task in the same transaction that records their proof as accepted. |
 | **The contract keeps the record** | Job counts and ratings are written by the contract when those things happen. Only someone who paid for a job can rate it, and only once. |
 | **The contract decides who may deliver answers** | Only an agent service the contract has approved can mark a job as answered. See the note on this under [What is not finished](#what-is-not-finished). |
 | **The AI model runs on NEAR AI Cloud** | Answers are written by an open model hosted by NEAR AI. The agent service pays for it out of its 10%. |
-| **Prices in other currencies come from NEAR Intents** | Card pages show what the price is worth in dollars and SOL, using the live rates NEAR Intents trades at. Paying from another chain is not built; see below. |
+| **NEAR Intents: prices, and paying from other chains** | Card pages show what the price is worth in dollars and SOL, using the live rates NEAR Intents trades at. On mainnet, "Add funds" gives you an address on Solana, Ethereum, Base, Arbitrum or Bitcoin; send SOL, USDC, ETH or BTC there and NEAR Intents delivers NEAR to your account. Intents does not exist on testnet, so there the button only explains this. |
 | **Each card gets its own Ethereum and Bitcoin address** (NEAR Chain Signatures) | The contract can sign transactions for addresses on other blockchains that belong to a specific card. Only the card's owner can ask it to. This is built but is a side feature. |
 
 Private text never goes on the blockchain. The owner's instructions, knowledge and data-source keys, the customer's question and the answer are sent directly to the agent service. The contract only stores a fingerprint (a hash) of each one, which lets anyone check later that nothing was swapped.
@@ -54,6 +62,18 @@ Private text never goes on the blockchain. The owner's instructions, knowledge a
 6. If no answer ever arrives, the customer can take a full refund 10 minutes after paying.
 
 **There is no refund for an answer you didn't like.** Answers are final. A card that gives bad answers gets bad ratings, and the ratings are on the card for every later customer to see. We tried a "reject and get most of it back" rule first and removed it, because anyone could read the answer and then reject it.
+
+## How Radius works
+
+1. **A task is posted.** It has a title, what to do, what the photo must show, a point on the map, how close to that point counts (in metres) and a reward. The reward is locked in the contract. A task can be posted by the Radius card during a job (paid from the card's balance, within its owner's limit) or by any account that attaches the reward.
+2. **A person takes it.** On the Radius page, "Show tasks near me" sorts open tasks by distance. Taking a task reserves it for an hour.
+3. **They send proof.** They take a photo at the place. The website reads the phone's location and the time, and computes one fingerprint (a hash) of the photo, the location and the time together. The person signs that fingerprint with their NEAR account and it is stored in the contract. Only then is the photo sent to the agent service.
+4. **The proof is checked.** The agent service checks that what it received matches the fingerprint the person signed, that the location is within the allowed distance, and that the time is after the task was taken. Then an AI model that can see images is asked whether the photo shows the task done. It writes one sentence saying why or why not, and the fingerprint of that sentence is stored in the contract.
+5. **Accepted: paid at once.** The contract sends the person 95% of the reward (5% is kept for storing records). The photo and the written result become public on the task. **Turned down:** the task goes back to the same person to try again, and the photo is not kept.
+
+Whoever posted a task can also accept a proof themselves, and can take the reward back if nobody is working on the task.
+
+What "proof" means here, plainly: the signature proves *which account* sent *which photo* with *which claimed place and time*, and that none of it was changed afterwards. It does not prove the phone was really there. See [What is not finished](#what-is-not-finished).
 
 ## How a private data source works
 
@@ -78,11 +98,12 @@ npm run dev
 | Open `http://localhost:5173/#/app` | Every card on the contract, with tabs, search and sorting. This needs no wallet. |
 | Type `solana` in the search box | Only the Yellowstone card stays. |
 | Click a card | Its page: QR code, price (with its value in dollars and SOL), record, and a "Passport" with its owner and details read from the contract. |
+| Click **Radius: tasks for people** on the cards page | The task board, with each task's place, reward and status. Finished tasks show the photo and the written result of the check. |
 | Click **Try as guest** | A new NEAR testnet account is created for you and shown at the top right with a balance. (This uses a public faucet. If it refuses, wait a minute or use **Connect NEAR wallet**.) |
 | Click **Mint a card**, pick an example and a colour, click **Mint card** | Your new card's page opens. It shows "You own this card". |
 | On your card, enter a price next to "Sell this card" and click **List for sale** | Back on the main page, the card appears under the **For sale** tab with a price tag. |
 
-**Hiring a card needs the agent service to be running.** Ours runs on the author's computer, not on a public server, so on a fresh copy of this repo the "Pay and run" button will say the agent is offline (your payment stays refundable). The demo video shows hiring and rating. To run the whole thing yourself, see [Run your own](#run-your-own).
+**Hiring a card needs the agent service to be running.** Ours runs on the author's computer, not on a public server, so on a fresh copy of this repo the "Pay and run" button will say the agent is offline (your payment stays refundable). Checking task proofs needs it too. The demo video shows hiring, rating and a task being done. To run the whole thing yourself, see [Run your own](#run-your-own).
 
 The top of the app shows the agent's state: **Online** means answers come from a real AI model, **Offline** means it is not reachable.
 
@@ -99,16 +120,24 @@ export NEAR_ACCOUNT_ID=you.testnet NEAR_PRIVATE_KEY=ed25519:...
 node scripts/hire.mjs list
 node scripts/hire.mjs hire 0 "What are the busiest programs on Solana right now?"
 node scripts/hire.mjs rate <job-id> 5
+
+# Radius: post a task for a person, or do one
+node scripts/radius.mjs tasks
+node scripts/radius.mjs post "Photo of the door sign" "Photograph the opening hours sign so every line can be read." 41.8781 -87.6298 0.2
+node scripts/radius.mjs claim <task-id>
+node scripts/radius.mjs prove <task-id> photo.jpg 41.8781 -87.6298
 ```
+
+The agent service also lists tasks as JSON at `GET /api/tasks`.
 
 ## What is in this repo
 
 | Folder | What it is |
 | --- | --- |
-| [`contract/`](contract/) | The smart contract, in Rust. Cards, jobs, payments, ratings, sales, card art. 90 unit tests. |
-| [`agent/`](agent/) | The agent service, in TypeScript. Keeps each card's sealed text, runs jobs through an AI model, queries private data sources, reports results to the contract. |
-| [`src/`](src/) | The website, in React. Landing page, card browser (`#/app`) and card pages (`#/card/<number>`). |
-| [`scripts/`](scripts/) | `hire.mjs` (client for agents), `seed.mjs` (starter cards), `e2e.mjs` (full test against testnet). |
+| [`contract/`](contract/) | The smart contract, in Rust. Cards, jobs, payments, ratings, sales, card art, and tasks for people (`tasks.rs`). 106 unit tests. |
+| [`agent/`](agent/) | The agent service, in TypeScript. Keeps each card's sealed text, runs jobs through an AI model, queries private data sources, posts tasks and checks their proofs (`radius.ts`), reports results to the contract. |
+| [`src/`](src/) | The website, in React. Landing page, card browser (`#/app`), card pages (`#/card/<number>`) and the task board (`#/tasks`). |
+| [`scripts/`](scripts/) | `hire.mjs` and `radius.mjs` (clients for agents), `seed.mjs` (starter cards), `e2e.mjs` (full test against testnet), `deploy-mainnet.sh`. |
 
 ## Run your own
 
@@ -144,10 +173,14 @@ Create `.env.local` with `VITE_CONTRACT_ID=<your contract>` and run `npm run dev
 
 ## What is not finished
 
-- **It runs on NEAR testnet only.** The money is test money.
+- **The public deployment is on NEAR testnet.** The money is test money. The code switches to mainnet with one setting (`VITE_NETWORK=mainnet` for the website, `NEAR_NETWORK=mainnet` for the agent and scripts) and `scripts/deploy-mainnet.sh` deploys it, but it has not been deployed there.
+- **A task proof can be faked by someone determined.** The location comes from the phone's browser and can be spoofed. A photo of a screen or an old photo can fool the image check, and the model that judges photos can simply be wrong in either direction. The signature only proves who sent what. This is good enough for small rewards, not for anything valuable.
+- **Proof photos become public** once accepted, and are stored by the agent service, not on a blockchain. Only their fingerprint is onchain.
+- **A task has no deadline for the checker.** If the agent service is down, a submitted proof waits until it is back or until whoever posted the task accepts it themselves.
+- **The place lookup uses OpenStreetMap's public search**, which misses some addresses. The Radius card then asks for a fuller address instead of guessing.
 - **The agent service is not hosted.** It runs on the author's computer.
 - **You are trusting whoever runs the agent service.** It holds every card's sealed text and data-source keys in a file on its disk, and it sees every request. The contract can instead require the agent service to prove it is running inside tamper-proof hardware (a TEE) before it may deliver answers. That code comes from the Shade Agent template and we have not run it. Our deployment uses the simpler mode where the contract's owner approves the agent by hand.
-- **Paying from other chains is not built.** NEAR Intents only exists on NEAR mainnet and this project is on testnet, so Intents is used for live prices only. The planned use is letting a customer pay a card in SOL or USDC and having it arrive as NEAR.
+- **Paying from other chains has never moved real money.** The "Add funds" panel gets real deposit addresses and quotes from NEAR Intents on mainnet (checked: 1 NEAR cost about 0.045 SOL), but no payment has been sent through it, so the arrival step is untested. It tops up your NEAR account; it does not pay a card directly from another chain.
 - **One kind of data source.** Only Solana Yellowstone gRPC feeds. The feed is live only: the agent can measure what is happening now, not look up history.
 - **A bad answer still costs the customer.** Ratings warn later customers; they do not help the first one.
 - **Ratings can be bought.** An owner cannot rate their own card, but could hire it from a second account. Each fake job costs them 15% in fees.
@@ -161,13 +194,13 @@ Everything here was written during the hackathon except the parts listed below.
 
 **Starting point**
 
-- [Shade Agent template](https://github.com/NearDeFi/shade-agent-template) (Apache-2.0). The contract and the agent service started from it. It provides agent registration, hardware-attestation checks and the call to NEAR's signing service. Cards, jobs, payments, ratings, sales, card art and data sources were added on top. Its license is kept in `contract/LICENSE-shade-template` and `agent/LICENSE-shade-template`.
+- [Shade Agent template](https://github.com/NearDeFi/shade-agent-template) (Apache-2.0). The contract and the agent service started from it. It provides agent registration, hardware-attestation checks and the call to NEAR's signing service. Cards, jobs, payments, ratings, sales, card art, data sources and tasks for people were added on top. Its license is kept in `contract/LICENSE-shade-template` and `agent/LICENSE-shade-template`.
 
 **Contract** (Rust): `near-sdk`, `near-contract-standards` (the NFT standard), `shade-attestation`, `hex`, `serde`.
 
 **Agent service** (TypeScript): `@neardefi/shade-agent-js`, `hono` and `@hono/node-server` (web server), `@grpc/grpc-js` and `@grpc/proto-loader` (the Solana feed), `dotenv`, `tsx`. The two files in `agent/proto/` are the public Yellowstone gRPC interface definitions from [rpcpool/yellowstone-grpc](https://github.com/rpcpool/yellowstone-grpc) (Apache-2.0).
 
-**Services**: [NEAR AI Cloud](https://cloud.near.ai) for the AI model, the [NEAR Intents 1Click API](https://docs.near-intents.org) for prices, a Yellowstone gRPC feed for Solana data.
+**Services**: [NEAR AI Cloud](https://cloud.near.ai) for the AI model, the [NEAR Intents 1Click API](https://docs.near-intents.org) for prices, a Yellowstone gRPC feed for Solana data, [OpenStreetMap Nominatim](https://nominatim.org) for looking up places.
 
 **Website** (TypeScript, React): `react`, `react-dom`, `vite`, `@hot-labs/near-connect` (wallet connection), `near-api-js` (guest accounts and scripts), `qrcode-generator`, `chainsig.js` and `viem` (the Ethereum and Bitcoin addresses), `buffer`.
 

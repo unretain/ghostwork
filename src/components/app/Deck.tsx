@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { agentStatus, deliverSkill, type AgentStatus } from "../../chain/agent";
-import { CONTRACT_ID, MINT_DEPOSIT_YOCTO, MINT_GAS, NEAR_EXPLORER } from "../../chain/config";
+import { CONTRACT_ID, MINT_DEPOSIT_YOCTO, MINT_GAS, NEAR_EXPLORER, NETWORK } from "../../chain/config";
 import { getCards, getStats, near, PALETTE, previewArt, rating, toYocto, type Card, type Stats } from "../../chain/near";
 import { call, useSession } from "../../chain/wallet";
 import { commitment, loadSkill, randomHex, saveSkill } from "../../lib/vault";
@@ -42,6 +42,9 @@ function MintForm({ minPrice, onMinted }: { minPrice: string; onMinted: () => vo
   const [color, setColor] = useState<string>("Tide");
   // optional private data source the agent may query; the credentials are sealed with the skill
   const [useSource, setUseSource] = useState(false);
+  // or: the card may hire people for real-world tasks, paying from its own treasury
+  const [useRadius, setUseRadius] = useState(false);
+  const [taskBudget, setTaskBudget] = useState("0.2");
   const [endpoint, setEndpoint] = useState("");
   const [token, setToken] = useState("");
   const [art, setArt] = useState<string | null>(null);
@@ -89,6 +92,8 @@ function MintForm({ minPrice, onMinted }: { minPrice: string; onMinted: () => vo
       let text = knowledge.trim() ? `${prompt.trim()}\n\n--- PRIVATE KNOWLEDGE ---\n${knowledge.trim()}` : prompt.trim();
       if (useSource) {
         text += `\n--- DATA SOURCE ---\n${JSON.stringify({ type: "solana-yellowstone-grpc", endpoint: endpoint.trim(), token: token.trim() })}`;
+      } else if (useRadius) {
+        text += `\n--- DATA SOURCE ---\n${JSON.stringify({ type: "radius-tasks" })}`;
       }
       const salt = randomHex();
       const hash = await commitment(salt, text);
@@ -101,6 +106,8 @@ function MintForm({ minPrice, onMinted }: { minPrice: string; onMinted: () => vo
       );
       if (result?.token_id) {
         await deliverSkill(result.token_id, salt, text).catch(() => {});
+        const budget = useRadius ? toYocto(taskBudget) : null;
+        if (budget) await call("set_task_budget", { token_id: result.token_id, max_reward: budget });
         toast("ok", `${title.trim()} is minted and its skill is sealed`, txHash && `${NEAR_EXPLORER}/txns/${txHash}`);
         onMinted();
         window.location.hash = `#/card/${result.token_id}`;
@@ -177,7 +184,7 @@ function MintForm({ minPrice, onMinted }: { minPrice: string; onMinted: () => vo
         </label>
         <div className="lbl">
           <label className="check">
-            <input type="checkbox" checked={useSource} onChange={(e) => setUseSource(e.target.checked)} />
+            <input type="checkbox" checked={useSource} onChange={(e) => (setUseSource(e.target.checked), e.target.checked && setUseRadius(false))} />
             Give it a private data source <span className="muted">(a live feed only you have access to)</span>
           </label>
           {useSource && (
@@ -188,6 +195,22 @@ function MintForm({ minPrice, onMinted }: { minPrice: string; onMinted: () => vo
               </span>
               <input className="field" placeholder="Endpoint, e.g. solana-yellowstone-grpc.publicnode.com:443" value={endpoint} onChange={(e) => setEndpoint(e.target.value)} aria-label="gRPC endpoint" />
               <input className="field" type="password" placeholder="Access token" value={token} onChange={(e) => setToken(e.target.value)} aria-label="gRPC access token" autoComplete="off" />
+            </div>
+          )}
+          <label className="check">
+            <input type="checkbox" checked={useRadius} onChange={(e) => (setUseRadius(e.target.checked), e.target.checked && setUseSource(false))} />
+            Let it hire people <span className="muted">(Radius: it can post paid real-world tasks)</span>
+          </label>
+          {useRadius && (
+            <div className="source">
+              <span className="muted">
+                During a job the agent can post a task for a person near a place. The reward comes out of this card's own treasury, never more than the
+                limit below per task. Add NEAR to the treasury from the card's page after minting.
+              </span>
+              <span className="price-input">
+                <input className="field field--sm" inputMode="decimal" value={taskBudget} onChange={(e) => setTaskBudget(e.target.value)} aria-label="Most it may pay per task" />
+                NEAR at most per task
+              </span>
             </div>
           )}
         </div>
@@ -320,7 +343,7 @@ export function Deck() {
   ];
   const empty =
     cards === null
-      ? "Reading cards from testnet…"
+      ? `Reading cards from ${NETWORK}…`
       : query.trim()
         ? `No cards match "${query.trim()}".`
         : tab === "sale"
@@ -337,7 +360,7 @@ export function Deck() {
         <header className="app__head">
           <div>
             <p className="eyebrow-prominent">
-              NEAR testnet ·{" "}
+              NEAR {NETWORK} ·{" "}
               <a href={`${NEAR_EXPLORER}/address/${CONTRACT_ID}`} target="_blank" rel="noopener noreferrer">
                 {CONTRACT_ID}
               </a>
@@ -345,6 +368,11 @@ export function Deck() {
             <h1 className="display-heading" style={{ marginTop: 12 }}>
               Agent Cards
             </h1>
+            <div className="deck-links">
+              <a className="kyd-button kyd-button--compact kyd-button--frame" href="#/tasks">
+                Radius: tasks for people{stats && Number(stats.tasks) > 0 ? ` (${stats.tasks})` : ""}
+              </a>
+            </div>
           </div>
           <SessionBar tick={tick} />
         </header>
@@ -375,8 +403,7 @@ export function Deck() {
           <section className="welcome">
             <h2 className="panel-title">Mint an agent. Put it to work.</h2>
             <p className="muted">
-              Every card is an AI agent with a sealed skill and its own earnings. Start as a guest to get a free testnet account in one click, no wallet
-              needed.
+              Every card is an AI agent with a sealed skill and its own earnings. {NETWORK === "testnet" ? "Start as a guest to get a free testnet account in one click, no wallet needed." : "Connect a NEAR wallet to start."}
             </p>
             <ConnectButtons />
           </section>

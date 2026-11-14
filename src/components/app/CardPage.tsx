@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { agentStatus, deliverJob, deliverSkill, type AgentStatus } from "../../chain/agent";
-import { cardUrl, CONTRACT_ID, MINT_GAS, NEAR_EXPLORER, SEPOLIA_EXPLORER } from "../../chain/config";
+import { cardUrl, CONTRACT_ID, MINT_GAS, NEAR_EXPLORER, NETWORK, SEPOLIA_EXPLORER } from "../../chain/config";
 import { getCard, getContractInfo, getStats, near, toYocto, type Card, type ContractInfo, type Job, type Stats } from "../../chain/near";
 import { useRates, worth } from "../../chain/intents";
 import { call, useSession } from "../../chain/wallet";
@@ -126,7 +126,7 @@ function HirePanel({ card, account, onChange, stats }: Props & { stats: Stats | 
           ) : (
             <div className="hire__go">
               <ConnectButtons compact />
-              <span className="muted">Guests get a free testnet account, so trying it costs nothing.</span>
+              {NETWORK === "testnet" && <span className="muted">Guests get a free testnet account, so trying it costs nothing.</span>}
             </div>
           )}
         </>
@@ -310,6 +310,8 @@ function OwnerPanel({ card, onChange, agent }: Props & { agent: AgentStatus | nu
   const [resealing, setResealing] = useState(false);
   const [receiver, setReceiver] = useState("");
   const [ask, setAsk] = useState(card.listed_price ? near(card.listed_price) : "5");
+  const [budget, setBudget] = useState(near(card.task_budget));
+  const [topUp, setTopUp] = useState("0.5");
   const { busy, run } = useBusy();
 
   const held = !!card.prompt_hash && agent?.skills[card.token_id] === card.prompt_hash;
@@ -351,6 +353,49 @@ function OwnerPanel({ card, onChange, agent }: Props & { agent: AgentStatus | nu
         >
           {busy === "claim" ? "Claiming…" : "Claim"}
         </button>
+      </div>
+
+      <div className="kv">
+        <span>
+          Hiring people <span className="muted">(Radius: the most this card may pay a person per task, from the earnings above)</span>
+        </span>
+        <span className="inline-form">
+          <input className="field field--sm" inputMode="decimal" value={budget} onChange={(e) => setBudget(e.target.value)} aria-label="Most per task in NEAR" />
+          <button
+            className="mini-btn"
+            disabled={!!busy || toYocto(budget) === null || toYocto(budget) === card.task_budget}
+            onClick={() =>
+              run("budget", async () => {
+                await call("set_task_budget", { token_id: card.token_id, max_reward: toYocto(budget) });
+                toast("ok", Number(budget) > 0 ? `This card may pay up to ${budget} NEAR per task` : "This card can no longer pay for tasks");
+                await onChange();
+              })
+            }
+          >
+            Set limit
+          </button>
+        </span>
+      </div>
+      <div className="kv">
+        <span>
+          Add NEAR to the card <span className="muted">(a float, so it can pay for tasks before it has earned anything)</span>
+        </span>
+        <span className="inline-form">
+          <input className="field field--sm" inputMode="decimal" value={topUp} onChange={(e) => setTopUp(e.target.value)} aria-label="NEAR to add" />
+          <button
+            className="mini-btn"
+            disabled={!!busy || !toYocto(topUp) || toYocto(topUp) === "0"}
+            onClick={() =>
+              run("fund", async () => {
+                await call("fund_card", { token_id: card.token_id }, { deposit: toYocto(topUp)! });
+                toast("ok", `Added ${topUp} NEAR to the card`);
+                await onChange();
+              })
+            }
+          >
+            Add
+          </button>
+        </span>
       </div>
 
       <div className="kv">
@@ -454,7 +499,7 @@ function OwnerPanel({ card, onChange, agent }: Props & { agent: AgentStatus | nu
           Transfer card <span className="muted">(earnings, record and sealed skill go with it)</span>
         </span>
         <span className="inline-form">
-          <input className="field" placeholder="receiver.testnet" value={receiver} onChange={(e) => setReceiver(e.target.value)} />
+          <input className="field" placeholder={NETWORK === "testnet" ? "receiver.testnet" : "receiver.near"} value={receiver} onChange={(e) => setReceiver(e.target.value)} />
           <button
             className="mini-btn"
             disabled={!!busy || !receiver.trim()}
@@ -518,6 +563,13 @@ function Passport({ card, info, agent }: { card: Card; info: ContractInfo | null
       {row("Skill commitment", card.prompt_hash ? short(card.prompt_hash, 10) : "none")}
       {row("Model", agent?.llm.mode === "live" ? agent.llm.model : "—")}
       {row("Lifetime earnings", `${near(card.earned)} NEAR over ${card.jobs_done} jobs`)}
+      {BigInt(card.task_budget) > 0n &&
+        row(
+          "Hires people",
+          <a href="#/tasks">
+            up to {near(card.task_budget)} NEAR per task, {near(card.balance)} NEAR in its treasury
+          </a>,
+        )}
     </section>
   );
 }
@@ -588,7 +640,7 @@ export function CardPage({ tokenId }: { tokenId: string }) {
         </header>
 
         {card === undefined ? (
-          <p className="muted deck-empty">Reading card #{tokenId} from testnet…</p>
+          <p className="muted deck-empty">Reading card #{tokenId} from {NETWORK}…</p>
         ) : card === null ? (
           <p className="muted deck-empty">There is no card #{tokenId} on this contract.</p>
         ) : (

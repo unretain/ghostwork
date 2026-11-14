@@ -110,7 +110,7 @@ async function work(agent: ShadeClient, jobId: string, requestHash: string, requ
 
   let answer: string;
   try {
-    answer = await runSkill(card, skill.prompt, request);
+    answer = await runSkill(card, skill.prompt, request, { agent, tokenId: job.token_id });
   } catch (e) {
     // The job stays open onchain, so the customer can refund after 10 minutes.
     if (e instanceof LlmError) throw new HttpError(502, e.message);

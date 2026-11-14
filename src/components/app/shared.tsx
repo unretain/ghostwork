@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
+import { GUESTS_AVAILABLE, NETWORK } from "../../chain/config";
 import { getBalance, near } from "../../chain/near";
 import { connectWallet, signOut, startGuest, useSession } from "../../chain/wallet";
+import { TopUp } from "./TopUp";
 
 // ---- toasts ----
 export type Toast = { kind: "ok" | "err"; text: string; href?: string };
@@ -65,11 +67,13 @@ export function ConnectButtons({ compact = false }: { compact?: boolean }) {
   const size = compact ? "kyd-button--compact" : "kyd-button--hero";
   return (
     <div className="connect">
-      <button className={`kyd-button ${size} kyd-button--cool`} disabled={!!busy} onClick={() => run("guest", startGuest)}>
-        {busy === "guest" ? "Creating account…" : "Try as guest"}
-      </button>
+      {GUESTS_AVAILABLE && (
+        <button className={`kyd-button ${size} kyd-button--cool`} disabled={!!busy} onClick={() => run("guest", startGuest)}>
+          {busy === "guest" ? "Creating account…" : "Try as guest"}
+        </button>
+      )}
       <button
-        className={`kyd-button ${size} kyd-button--line`}
+        className={`kyd-button ${size} ${GUESTS_AVAILABLE ? "kyd-button--line" : "kyd-button--cool"}`}
         disabled={!!busy}
         onClick={() => run("wallet", async () => void (await connectWallet()))}
       >
@@ -82,6 +86,8 @@ export function ConnectButtons({ compact = false }: { compact?: boolean }) {
 export function SessionBar({ tick }: { tick?: unknown }) {
   const session = useSession();
   const [balance, setBalance] = useState<bigint | null>(null);
+  const [adding, setAdding] = useState(false);
+  const [arrived, setArrived] = useState(0);
   useEffect(() => {
     setBalance(null);
     if (!session) return;
@@ -92,7 +98,7 @@ export function SessionBar({ tick }: { tick?: unknown }) {
     return () => {
       live = false;
     };
-  }, [session, tick]);
+  }, [session, tick, arrived]);
 
   if (!session) return <ConnectButtons />;
   return (
@@ -102,11 +108,15 @@ export function SessionBar({ tick }: { tick?: unknown }) {
           {session.kind === "guest" && <span className="session__tag">Guest</span>}
           {session.accountId}
         </div>
-        <div className="session__bal">{balance === null ? "…" : `${near(balance, 2)} NEAR (testnet)`}</div>
+        <div className="session__bal">{balance === null ? "…" : `${near(balance, 2)} NEAR${NETWORK === "testnet" ? " (testnet)" : ""}`}</div>
       </div>
+      <button className="kyd-button kyd-button--compact kyd-button--frame" onClick={() => setAdding((v) => !v)}>
+        Add funds
+      </button>
       <button className="kyd-button kyd-button--compact kyd-button--frame" onClick={() => signOut()}>
         Disconnect
       </button>
+      {adding && <TopUp accountId={session.accountId} onClose={() => setAdding(false)} onArrived={() => setArrived((n) => n + 1)} />}
     </div>
   );
 }

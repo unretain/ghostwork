@@ -23,6 +23,7 @@ use near_sdk::store::LookupMap;
 
 pub use art::Traits;
 pub use ghostwork::{Card, CardView, EvmTx, Job, JobStatus, JobView, Stats};
+pub use tasks::{Task, TaskStatus, TaskView};
 pub use internal::events::Event;
 pub use internal::helpers::AgentRemovalReason;
 pub use views::{AgentValidity, AgentView, ContractInfo};
@@ -33,6 +34,7 @@ mod ghostwork;
 mod internal;
 mod nft;
 mod owner;
+mod tasks;
 pub mod views;
 
 pub type Ppid = HexBytes<16>;
@@ -58,6 +60,11 @@ pub struct Contract {
     pub next_job_id: u64,
     pub jobs_completed: u64,
     pub volume: u128,
+    // Radius: tasks for people, paid on proof
+    pub tasks: LookupMap<u64, Task>,
+    pub next_task_id: u64,
+    pub tasks_paid: u64,
+    pub task_volume: u128,
 }
 
 #[near(serializers = [borsh])]
@@ -81,6 +88,7 @@ pub enum StorageKey {
     Approval,
     Cards,
     Jobs,
+    Tasks,
 }
 
 const STORAGE_BYTES_TO_REGISTER: u128 = 486;
@@ -129,6 +137,10 @@ impl Contract {
             next_job_id: 0,
             jobs_completed: 0,
             volume: 0,
+            tasks: LookupMap::new(StorageKey::Tasks),
+            next_task_id: 0,
+            tasks_paid: 0,
+            task_volume: 0,
         }
     }
 

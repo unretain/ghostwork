@@ -4,12 +4,12 @@ import "../shims/buffer";
 import { chainAdapters, contracts, utils, type MPCSignature } from "chainsig.js";
 import { createPublicClient, http, keccak256, parseEther, serializeTransaction, type Hex } from "viem";
 import { sepolia } from "viem/chains";
-import { CONTRACT_ID, MPC_CONTRACT_ID, SEPOLIA_RPC, SIGN_GAS, tokenPath } from "./config";
+import { CONTRACT_ID, MPC_CONTRACT_ID, NETWORK, SEPOLIA_RPC, SIGN_GAS, tokenPath } from "./config";
 import { call } from "./wallet";
 
 const { toRSV, uint8ArrayToHex } = utils.cryptography;
 
-const mpc = new contracts.ChainSignatureContract({ networkId: "testnet", contractId: MPC_CONTRACT_ID });
+const mpc = new contracts.ChainSignatureContract({ networkId: NETWORK, contractId: MPC_CONTRACT_ID });
 export const publicClient = createPublicClient({ chain: sepolia, transport: http(SEPOLIA_RPC) });
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const Evm = new chainAdapters.evm.EVM({ publicClient: publicClient as any, contract: mpc });

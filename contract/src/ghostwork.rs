@@ -1,11 +1,11 @@
 // GHOSTWORK agent cards.
 //
 // Every NFT is an AI agent with a job. The owner seals a skill into it (only the
-// hash of the private instructions is stored here; the text lives inside the TEE
-// agent). Anyone can hire the card: payment is escrowed in this contract and is
-// released to the card when a registered, attested agent posts the result. The
-// card keeps its own treasury, job history, rating and level, and all of it moves
-// with the token when it is transferred.
+// hash of the private instructions is stored here; the text is held by the agent
+// service). Anyone can hire the card: payment is escrowed in this contract and is
+// released to the card when a registered agent posts the result. The card keeps
+// its own treasury, job history and rating, and all of it moves with the token
+// when it is transferred.
 use crate::*;
 use crate::art::{Traits, media_for, traits_for, traits_from_color};
 pub use crate::evm::EvmTx;
@@ -58,6 +58,8 @@ pub struct Card {
     pub minted_at_ms: u64,
     /// Asking price in yoctoNEAR while the card is for sale.
     pub listed_price: Option<u128>,
+    /// The most this card may spend from its treasury on one task for a person. Zero: none.
+    pub task_budget: u128,
 }
 
 #[near(serializers = [borsh])]
@@ -109,6 +111,7 @@ pub struct CardView {
     pub signatures: U64,
     pub minted_at_ms: U64,
     pub listed_price: Option<U128>,
+    pub task_budget: U128,
     /// The card art (SVG data URI), exactly as stored in the NFT metadata.
     pub media: Option<String>,
     pub traits: Traits,
@@ -124,13 +127,16 @@ pub struct Stats {
     pub operator_bps: u32,
     pub protocol_bps: u32,
     pub refund_after_ms: U64,
+    pub tasks: U64,
+    pub tasks_paid: U64,
+    pub task_volume: U128,
 }
 
 pub fn token_path(token_id: &str) -> String {
     format!("ghostwork/card/{token_id}")
 }
 
-fn require_hash(h: &str) {
+pub(crate) fn require_hash(h: &str) {
     require!(
         h.len() == 64 && h.bytes().all(|b| b.is_ascii_hexdigit()),
         "Hash must be 64 hex characters"
@@ -155,7 +161,7 @@ fn require_price(price: u128) {
     );
 }
 
-fn emit(event: &str, data: serde_json::Value) {
+pub(crate) fn emit(event: &str, data: serde_json::Value) {
     log!(
         "EVENT_JSON:{}",
         serde_json::json!({ "standard": "ghostwork", "version": "1.0.0", "event": event, "data": [data] })
@@ -179,14 +185,14 @@ fn job_view(job_id: u64, job: &Job) -> JobView {
 }
 
 impl Contract {
-    fn token_owner(&self, token_id: &TokenId) -> AccountId {
+    pub(crate) fn token_owner(&self, token_id: &TokenId) -> AccountId {
         self.tokens
             .owner_by_id
             .get(token_id)
             .unwrap_or_else(|| env::panic_str("Card not found"))
     }
 
-    fn require_token_owner(&self, token_id: &TokenId) {
+    pub(crate) fn require_token_owner(&self, token_id: &TokenId) {
         require!(
             env::predecessor_account_id() == self.token_owner(token_id),
             "Only the card owner can do this"
@@ -200,7 +206,7 @@ impl Contract {
         }
     }
 
-    fn agent_is_valid(&self, account_id: &AccountId) -> bool {
+    pub(crate) fn agent_is_valid(&self, account_id: &AccountId) -> bool {
         self.agents
             .get(account_id)
             .map(|a| self.check_invalid_reasons(account_id, a).is_empty())
@@ -237,6 +243,7 @@ impl Contract {
             signatures: U64(card.signatures),
             minted_at_ms: U64(card.minted_at_ms),
             listed_price: card.listed_price.map(U128),
+            task_budget: U128(card.task_budget),
             // newest first; refunded jobs are deleted, so skip ids that no longer exist
             recent_jobs: card
                 .recent_jobs
@@ -306,6 +313,7 @@ impl Contract {
                 signatures: 0,
                 minted_at_ms: block_timestamp_ms(),
                 listed_price: None,
+                task_budget: 0,
             },
         );
         let token = self
@@ -621,6 +629,9 @@ impl Contract {
             operator_bps: OPERATOR_BPS as u32,
             protocol_bps: PROTOCOL_BPS as u32,
             refund_after_ms: U64(REFUND_AFTER_MS),
+            tasks: U64(self.next_task_id),
+            tasks_paid: U64(self.tasks_paid),
+            task_volume: U128(self.task_volume),
         }
     }
 }

@@ -4,7 +4,7 @@
 import { NearConnector } from "@hot-labs/near-connect";
 import { Account, KeyPair } from "near-api-js";
 import { useEffect, useState } from "react";
-import { CALL_GAS, CONTRACT_ID, FAUCET_URL, NEAR_RPC, NETWORK } from "./config";
+import { CALL_GAS, CONTRACT_ID, FAUCET_URL, GUESTS_AVAILABLE, NEAR_RPC, NETWORK } from "./config";
 
 export type Session = { kind: "wallet" | "guest"; accountId: string };
 
@@ -37,7 +37,7 @@ function activateGuest(g: StoredGuest) {
 }
 
 // restore whichever session was active
-{
+if (GUESTS_AVAILABLE) {
   const g = loadGuest();
   if (g && localStorage.getItem(GUEST_ACTIVE)) activateGuest(g);
 }
@@ -71,6 +71,7 @@ export const connectWallet = () => connector.connect();
 
 /** Create (or resume) a throwaway testnet account funded by the faucet. */
 export async function startGuest() {
+  if (!GUESTS_AVAILABLE) throw new Error("Guest accounts only exist on testnet. Connect a NEAR wallet.");
   const existing = loadGuest();
   if (existing) return activateGuest(existing);
   const key = KeyPair.fromRandom("ed25519");
@@ -124,18 +125,18 @@ function decode<T>(outcome: Outcome): T | null {
   }
 }
 
-/** Call a method on the GHOSTWORK contract as the current session. */
+/** Call a contract method as the current session. The GHOSTWORK contract unless `contractId` says otherwise. */
 export async function call<T = unknown>(
   methodName: string,
   args: Record<string, unknown>,
-  { gas = CALL_GAS, deposit = "0" }: { gas?: string; deposit?: string } = {},
+  { gas = CALL_GAS, deposit = "0", contractId = CONTRACT_ID }: { gas?: string; deposit?: string; contractId?: string } = {},
 ): Promise<{ result: T | null; txHash: string | undefined }> {
   if (!session) throw new Error("Connect a wallet or start as a guest first");
   let outcome: Outcome;
   try {
     if (session.kind === "guest" && guest) {
       outcome = (await guest.callFunctionRaw({
-        contractId: CONTRACT_ID,
+        contractId,
         methodName,
         args,
         gas: BigInt(gas),
@@ -144,7 +145,7 @@ export async function call<T = unknown>(
     } else {
       const wallet = await connector.wallet();
       outcome = (await wallet.signAndSendTransaction({
-        receiverId: CONTRACT_ID,
+        receiverId: contractId,
         actions: [{ type: "FunctionCall", params: { methodName, args, gas, deposit } }],
       })) as unknown as Outcome;
     }

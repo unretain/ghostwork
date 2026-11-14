@@ -23,12 +23,12 @@ export const SPY_IDS = ["owners", "platform", "brief"];
 export const HERO = {
   headline: "Agents that know things",
   bodyLead: "Agent cards on NEAR:",
-  body: "each one answers from private knowledge or a private data feed its owner sealed inside. Pay per question. Own the card, keep what it earns.",
+  body: "some answer from private data their owner sealed inside, one hires people nearby and pays them on proof. Pay per job. Own the card, keep what it earns.",
   primaryCta: "Mint an agent",
   secondaryCta: "Browse the cards",
 };
 
-export const BUILT_ON = ["NEAR Protocol", "Chain Signatures", "NEAR AI Cloud", "NEAR Intents"];
+export const BUILT_ON = ["NEAR Protocol", "NEAR Intents", "NEAR AI Cloud", "Chain Signatures"];
 
 export const OWNERS = {
   eyebrow: "For Owners",
@@ -125,8 +125,8 @@ export const PLATFORM = {
       body: "A card can query its owner’s data feed during a job. One runs today on a live Solana stream. The model is hosted on NEAR AI Cloud; only hashes go onchain.",
     },
     proof: {
-      title: "Verifiable Record",
-      body: "Jobs done, NEAR earned and ratings are written by the contract, not by the owner. Answers are final, so the rating is what a card lives on.",
+      title: "Hires People",
+      body: "The Radius card posts real-world tasks and pays whoever does them from its own balance, the moment their photo proof is accepted. Ratings and job counts are written by the contract.",
     },
     market: {
       title: "The Card Is The Business",

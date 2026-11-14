@@ -1,5 +1,4 @@
-// What the agent keeps on disk. Inside the TEE this directory is an encrypted
-// volume, so sealed skills survive restarts without ever leaving the enclave.
+// What the agent keeps on disk: sealed skills, recent answers and accepted task proofs.
 import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -44,6 +43,22 @@ export function putResult(jobId: string, result: Result) {
   for (const id of ids.slice(0, Math.max(0, ids.length - MAX_RESULTS))) delete results[id];
   save("results.json", results);
 }
+
+/** The outcome of checking one task proof. The photo is kept only when it was accepted. */
+export type ProofRecord = {
+  proofHash: string;
+  approved: boolean;
+  verdict: string;
+  verdictHash: string;
+  lat: number;
+  lon: number;
+  takenMs: number;
+  photo: string | null;
+};
+mkdirSync(join(DIR, "proofs"), { recursive: true });
+const proofFile = (taskId: string) => join("proofs", `${taskId.replace(/\D/g, "")}.json`);
+export const getProof = (taskId: string) => load<ProofRecord | null>(proofFile(taskId), null);
+export const putProof = (taskId: string, record: ProofRecord) => save(proofFile(taskId), record);
 
 export const sha256Hex = (text: string) => createHash("sha256").update(text, "utf8").digest("hex");
 /** Commitment stored onchain: sha256(salt + "\n" + text). The salt stops anyone guessing short texts. */

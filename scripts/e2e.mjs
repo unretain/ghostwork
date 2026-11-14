@@ -14,7 +14,8 @@ const env = Object.fromEntries(
 );
 const CONTRACT = env.AGENT_CONTRACT_ID;
 const AGENT = process.env.AGENT_URL || "http://localhost:3000";
-const RPC = "https://test.rpc.fastnear.com";
+// NEAR_NETWORK=mainnet switches networks; NEAR_RPC overrides the node
+const RPC = process.env.NEAR_RPC || (process.env.NEAR_NETWORK === "mainnet" ? "https://free.rpc.fastnear.com" : "https://test.rpc.fastnear.com");
 const NEAR = 10n ** 24n;
 const commitment = (salt, text) => createHash("sha256").update(`${salt}\n${text}`).digest("hex");
 const step = (s) => console.log(`\n== ${s}`);

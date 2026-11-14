@@ -5,7 +5,11 @@ import { cors } from "hono/cors";
 import { ShadeClient } from "@neardefi/shade-agent-js";
 import { counters, HttpError, runJob, sealSkill, view } from "./jobs";
 import { llmInfo } from "./llm";
+import { checkProof, publicTask, type ChainTask } from "./radius";
+import { getProof } from "./store";
 import { skillHashes } from "./store";
+
+const networkId = process.env.NEAR_NETWORK === "mainnet" ? "mainnet" : "testnet";
 
 const agentContractId = process.env.AGENT_CONTRACT_ID;
 const sponsorAccountId = process.env.SPONSOR_ACCOUNT_ID;
@@ -17,7 +21,7 @@ if (!agentContractId || !sponsorAccountId || !sponsorPrivateKey) {
 // Inside a TEE the agent's NEAR key is generated in memory and never leaves it.
 // Locally, derivationPath keeps the account stable across restarts.
 const agent = await ShadeClient.create({
-  networkId: "testnet",
+  networkId,
   agentContractId,
   sponsor: { accountId: sponsorAccountId, privateKey: sponsorPrivateKey },
   derivationPath: sponsorPrivateKey,
@@ -41,6 +45,7 @@ app.get("/api/status", (c) =>
   c.json({
     accountId: agent.accountId(),
     contractId: agentContractId,
+    network: networkId,
     registered,
     startedAt,
     llm: llmInfo(),
@@ -49,7 +54,7 @@ app.get("/api/status", (c) =>
   }),
 );
 
-const handle = (fn: typeof runJob | typeof sealSkill) => async (c: import("hono").Context) => {
+const handle = (fn: typeof runJob | typeof sealSkill | typeof checkProof) => async (c: import("hono").Context) => {
   try {
     if (!registered) throw new HttpError(503, "The agent is still registering with the contract");
     const body = (await c.req.json().catch(() => null)) as Record<string, unknown> | null;
@@ -105,6 +110,31 @@ app.get("/api/cards/:id", async (c) => {
     return c.json({ error: "Could not reach NEAR right now. Try again." }, 503);
   }
 });
+
+// Radius: tasks for people. The list and the accepted proofs are public.
+app.get("/api/tasks", async (c) => {
+  try {
+    const tasks = (await view<ChainTask[]>(agent, "get_tasks", { limit: 100 })) ?? [];
+    return c.json({ contract: agentContractId, tasks: tasks.map(publicTask) });
+  } catch {
+    return c.json({ error: "Could not reach NEAR right now. Try again." }, 503);
+  }
+});
+app.get("/api/tasks/:id/proof", (c) => {
+  const proof = getProof(c.req.param("id"));
+  if (!proof) return c.json({ error: "No checked proof for this task" }, 404);
+  return c.json({
+    approved: proof.approved,
+    verdict: proof.verdict,
+    verdict_hash: proof.verdictHash,
+    proof_hash: proof.proofHash,
+    latitude: proof.lat,
+    longitude: proof.lon,
+    taken_ms: proof.takenMs,
+    photo: proof.photo,
+  });
+});
+app.post("/api/proof", handle(checkProof));
 
 app.post("/api/skill", handle(sealSkill));
 app.post("/api/job", handle(runJob));

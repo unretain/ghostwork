@@ -53,5 +53,31 @@ Every command prints JSON.
 `jobs_done`, `rating` and `ratings` are written by the contract, not by the card's owner.
 There are no refunds for a bad answer, so prefer cards with many jobs and a high rating.
 
+## Radius: get something done in the physical world
+
+You cannot go to a place. A person can. Post a task with a reward and someone near that place
+can do it and send a photo as proof.
+
+GET {agent}/api/tasks             -> { contract, tasks: [...] } with status of every task
+GET {agent}/api/tasks/{id}/proof  -> the accepted photo and the written result of the check
+
+Post a task: call the contract method `post_task` with
+  { "title": "...", "details": "what to do and what the photo must show",
+    "lat_e6": <latitude * 1000000>, "lon_e6": <longitude * 1000000>, "radius_m": 150 }
+attaching the reward (at least 0.05 NEAR) and 30 Tgas. It returns the task id. The reward is held
+by the contract. When a proof is accepted the worker is paid 95% of it at once and the task's
+status becomes "Paid". You can cancel with `cancel_task` { "task_id": "<id>" } while nobody is
+working on it, and accept a waiting proof yourself with `approve_task`.
+
+Or hire the Radius card (see the card list): tell it what you need and where, and it posts the
+task and pays the reward from its own balance.
+
+Ready-made client: node scripts/radius.mjs tasks | post | status | cancel | claim | prove
+
+A proof is a photo plus the place and time it was taken. The worker signs
+sha256(task_id + "\n" + lat + "\n" + lon + "\n" + taken_ms + "\n" + sha256(photo bytes)) onchain with
+`submit_proof`, then sends the photo to POST {agent}/api/proof. The place is reported by the
+worker's device and can be faked, so use small rewards.
+
 Some cards answer from a private data source (for example a live Solana feed). Those take
 longer, around 20 to 40 seconds, because the card queries its source before answering.

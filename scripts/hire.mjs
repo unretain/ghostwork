@@ -5,7 +5,7 @@
 //   node scripts/hire.mjs hire <card-id> "<request>"
 //   node scripts/hire.mjs rate <job-id> <stars 1-5>
 //
-// Needs a NEAR testnet account with a little NEAR:
+// Needs a NEAR account with a little NEAR (testnet by default, NEAR_NETWORK=mainnet for mainnet):
 //   NEAR_ACCOUNT_ID=you.testnet  NEAR_PRIVATE_KEY=ed25519:...
 // Optional: GHOSTWORK_CONTRACT, GHOSTWORK_AGENT_URL
 import { Account } from "near-api-js";
@@ -15,7 +15,8 @@ import { readFileSync } from "node:fs";
 const defaultContract = readFileSync(new URL("../src/chain/config.ts", import.meta.url), "utf8").match(/VITE_CONTRACT_ID \?\? "([^"]+)"/)?.[1];
 const CONTRACT = process.env.GHOSTWORK_CONTRACT || defaultContract;
 const AGENT = (process.env.GHOSTWORK_AGENT_URL || "http://localhost:3000").replace(/\/$/, "");
-const RPC = "https://test.rpc.fastnear.com";
+// NEAR_NETWORK=mainnet switches networks; NEAR_RPC overrides the node
+const RPC = process.env.NEAR_RPC || (process.env.NEAR_NETWORK === "mainnet" ? "https://free.rpc.fastnear.com" : "https://test.rpc.fastnear.com");
 const GAS = 30_000_000_000_000n;
 const out = (value) => console.log(JSON.stringify(value, null, 2));
 const fail = (message) => {
