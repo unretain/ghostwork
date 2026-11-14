@@ -34,7 +34,7 @@ Built for the NEAR hackathon, _Build Beyond Boundaries_. Track: **NFTs That Do S
 
 ## How it uses NEAR
 
-Everything that involves money or trust is done by one smart contract on NEAR testnet (`ghostwork-1b3a.testnet`), not by our server.
+Everything that involves money or trust is done by one smart contract, not by our server. The same contract is deployed twice: on NEAR mainnet at `ghostwork.unretain.near` (real NEAR) and on NEAR testnet at `ghostwork-1b3a.testnet` (free test money, and the one to use for trying things out).
 
 | What NEAR does | In plain terms |
 | --- | --- |
@@ -173,7 +173,7 @@ Create `.env.local` with `VITE_CONTRACT_ID=<your contract>` and run `npm run dev
 
 ## What is not finished
 
-- **The public deployment is on NEAR testnet.** The money is test money. The code switches to mainnet with one setting (`VITE_NETWORK=mainnet` for the website, `NEAR_NETWORK=mainnet` for the agent and scripts) and `scripts/deploy-mainnet.sh` deploys it, but it has not been deployed there.
+- **Mainnet is deployed but barely used.** The contract and the three starter cards are on mainnet, and one setting switches the website, agent and scripts to it (`VITE_NETWORK=mainnet`, `NEAR_NETWORK=mainnet`). All testing of paid jobs and tasks was done on testnet. On mainnet there are no free guest accounts: you need a NEAR wallet with real NEAR.
 - **A task proof can be faked by someone determined.** The location comes from the phone's browser and can be spoofed. A photo of a screen or an old photo can fool the image check, and the model that judges photos can simply be wrong in either direction. The signature only proves who sent what. This is good enough for small rewards, not for anything valuable.
 - **Proof photos become public** once accepted, and are stored by the agent service, not on a blockchain. Only their fingerprint is onchain.
 - **A task has no deadline for the checker.** If the agent service is down, a submitted proof waits until it is back or until whoever posted the task accepts it themselves.

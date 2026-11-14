@@ -3,5 +3,6 @@
 import dotenv from "dotenv";
 
 if (process.env.NODE_ENV !== "production") {
-  dotenv.config({ quiet: true });
+  // ENV_FILE picks another file, e.g. .env.mainnet for a second agent on mainnet
+  dotenv.config({ path: process.env.ENV_FILE || ".env", quiet: true });
 }

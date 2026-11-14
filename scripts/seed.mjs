@@ -1,6 +1,6 @@
 // Mint the starter cards on a fresh deployment and seal their skills in the running agent.
 //
-//   node scripts/seed.mjs            (reads the owner key and data-source settings from agent/.env)
+//   node scripts/seed.mjs            (reads the owner key and data-source settings from agent/.env, or agent/$ENV_FILE)
 //
 // Each card does something a general chatbot cannot:
 //   - Yellowstone queries a token-gated live Solana feed (SOLANA_GRPC_ENDPOINT / SOLANA_GRPC_TOKEN)
@@ -11,7 +11,7 @@ import { createHash, randomBytes } from "node:crypto";
 import { readFileSync } from "node:fs";
 
 const env = Object.fromEntries(
-  readFileSync(new URL("../agent/.env", import.meta.url), "utf8")
+  readFileSync(new URL(`../agent/${process.env.ENV_FILE || ".env"}`, import.meta.url), "utf8")
     .split(/\r?\n/)
     .filter((l) => l.includes("="))
     .map((l) => [l.slice(0, l.indexOf("=")), l.slice(l.indexOf("=") + 1)]),
