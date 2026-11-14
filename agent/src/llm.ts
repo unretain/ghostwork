@@ -2,6 +2,7 @@
 // NEAR AI Cloud. A card can also have a private data source: the model is given
 // tools to query it, and this code makes the calls with the owner's credentials.
 import { httpToolSpecs, isHttpSource, runHttpTool, type HttpSource } from "./httpsource";
+import { isPgSource, pgSecrets, pgToolSpecs, runPgTool, type PgSource } from "./pgsource";
 import { radiusToolSpecs, runRadiusTool, type RadiusContext, type RadiusSource } from "./radius";
 import { runSolanaTool, solanaToolSpecs, type SolanaSource } from "./solana";
 
@@ -28,7 +29,7 @@ const SOURCE_MARK = "\n--- DATA SOURCE ---\n";
  * optionally followed by a data-source block holding an endpoint and its token.
  * The block is split off here so it can never be placed in the model's context.
  */
-type Source = SolanaSource | RadiusSource | HttpSource;
+type Source = SolanaSource | RadiusSource | HttpSource | PgSource;
 
 export function parseSealed(sealed: string): { instructions: string; source: Source | null } {
   const at = sealed.lastIndexOf(SOURCE_MARK);
@@ -37,6 +38,9 @@ export function parseSealed(sealed: string): { instructions: string; source: Sou
     const cfg = JSON.parse(sealed.slice(at + SOURCE_MARK.length));
     if (cfg?.type === "solana-yellowstone-grpc" && typeof cfg.endpoint === "string" && typeof cfg.token === "string") {
       return { instructions: sealed.slice(0, at).trimEnd(), source: cfg as SolanaSource };
+    }
+    if (isPgSource(cfg)) {
+      return { instructions: sealed.slice(0, at).trimEnd(), source: cfg };
     }
     if (isHttpSource(cfg)) {
       return { instructions: sealed.slice(0, at).trimEnd(), source: cfg };
@@ -73,6 +77,14 @@ function systemPrompt(card: CardInfo, instructions: string, source: Source | nul
           "--- API GUIDE ---",
           source.guide,
           "--- END API GUIDE ---",
+        ]
+      : []),
+    ...(source?.type === "postgres"
+      ? [
+          "- You have tools that read the owner's private database. List the tables first, then query. Base every fact on rows the tools return, and give exact figures.",
+          "- Answer the customer's question from the data. Do not hand over whole tables or describe the database's structure to the customer.",
+          "- If a query fails or returns nothing, say so plainly. Never invent data.",
+          ...(source.guide.trim() ? ["- The owner's notes about the data follow.", "--- DATA NOTES ---", source.guide, "--- END DATA NOTES ---"] : []),
         ]
       : []),
     ...(tools === "radius-tasks"
@@ -152,7 +164,9 @@ export async function runSkill(card: CardInfo, sealed: string, request: string, 
   const { instructions, source } = parseSealed(sealed);
   if (!API_KEY) throw new LlmError("No model is configured on this agent (NEAR_AI_API_KEY is not set)");
 
-  const tools = !source ? undefined : source.type === "radius-tasks" ? radiusToolSpecs : source.type === "http-api" ? httpToolSpecs : solanaToolSpecs;
+  const tools = !source
+    ? undefined
+    : { "radius-tasks": radiusToolSpecs, "http-api": httpToolSpecs, postgres: pgToolSpecs, "solana-yellowstone-grpc": solanaToolSpecs }[source.type];
   const messages: Message[] = [
     { role: "system", content: systemPrompt(card, instructions, source) },
     { role: "user", content: request },
@@ -179,12 +193,15 @@ export async function runSkill(card: CardInfo, sealed: string, request: string, 
       } catch {
         /* the tool will report what is missing */
       }
+      const s = source!;
       const result =
-        source!.type === "radius-tasks"
+        s.type === "radius-tasks"
           ? await runRadiusTool(ctx, call.function.name, args)
-          : source!.type === "http-api"
-            ? await runHttpTool(source as HttpSource, call.function.name, args)
-            : await runSolanaTool(source as SolanaSource, call.function.name, args);
+          : s.type === "http-api"
+            ? await runHttpTool(s, call.function.name, args)
+            : s.type === "postgres"
+              ? await runPgTool(s, call.function.name, args)
+              : await runSolanaTool(s, call.function.name, args);
       console.log(`  tool ${call.function.name}(${JSON.stringify(args)})`);
       messages.push({ role: "tool", tool_call_id: call.id, content: JSON.stringify(result).slice(0, MAX_TOOL_RESULT) });
     }
@@ -194,6 +211,9 @@ export async function runSkill(card: CardInfo, sealed: string, request: string, 
   // a tool call written out as text is not an answer; fail so the customer is not charged for it
   if (/<tool_call>|<function=/.test(answer)) throw new LlmError("The model did not finish the job. Try again.");
   if (source?.type === "solana-yellowstone-grpc") answer = answer.split(source.token).join("[hidden]").split(source.endpoint).join("[hidden]");
+  if (source?.type === "postgres") {
+    for (const secret of pgSecrets(source)) answer = answer.split(secret).join("[hidden]");
+  }
   if (source?.type === "http-api") {
     answer = answer.split(source.header_value).join("[hidden]").split(source.base_url).join("[hidden]").split(new URL(source.base_url).host).join("[hidden]");
     if (leaks(answer, source.guide)) return "This card can't share how its data source works. Ask it a question instead.";

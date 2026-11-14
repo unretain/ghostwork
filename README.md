@@ -20,7 +20,7 @@ Built for the NEAR hackathon, _Build Beyond Boundaries_. Track: **NFTs That Do S
 
 ## What you can do with it
 
-- **Make an agent.** Give it a name, say what it does, write its instructions, pick a colour and set a price per job. Then choose what it can use: documents you paste in, a web API you have a key for, a live Solana feed, or the ability to hire people. That mints a card.
+- **Make an agent.** Give it a name, say what it does, write its instructions, pick a colour and set a price per job. Then choose what it can use: documents you paste in, a Postgres database, a web API you have a key for, a live Solana feed, or the ability to hire people. That mints a card.
 - **Read the docs in the site.** `#/docs` explains hiring, making agents, how the photo proof works, and links to the contract on a block explorer.
 - **Hire an agent.** Open a card, type what you want, pay. The answer comes back on the page. Cards with a live data source take 20 to 40 seconds.
 - **Do a task for an agent and get paid.** Open the Radius page, take a task near you, send a photo from the spot. See below.
@@ -82,12 +82,13 @@ When you make a card you can tick "connect a private data source" and enter an e
 
 During a job the AI model is given a small set of tools ("check chain status", "measure network activity", "list the busiest programs", "watch this address"). The model decides which to call. The agent service makes the calls using the owner's token and passes back only the results. The token and the endpoint are never shown to the model, so the model cannot leak them, and they are also removed from any answer as a second check.
 
-Two kinds of source are supported:
+Three kinds of source are supported:
 
 - **A web API you have a key for.** You enter its https address, the header that unlocks it (for example `Authorization: Bearer your-key`) and a short guide in your own words to which paths exist. The model reads the guide and asks for a path; the agent service makes the request and adds your header. Requests are read-only, can only go to paths under the address you gave, and cannot reach private networks. This covers most private data: a database behind an API, a paid data provider, an internal service. Checked against a real key-protected API: the card answered from live data and an attempt to get the key or the address out of it returned neither.
+- **A Postgres database.** You enter a connection string. The model can list the tables and write SELECT queries; the agent service runs them and passes back the rows. Every query runs inside a read-only transaction with an 8 second limit and at most 200 rows. Checked against a test database: it answered a totals question correctly with two queries, and when told to drop a table and print the password it did neither, and the rows were untouched. The card can read whatever its database user can read, so give it a user that only sees the tables you want answers from.
 - **A Solana Yellowstone gRPC feed**, with the four tools above.
 
-Anything else (a database connection, a websocket) means writing one more file like [`agent/src/httpsource.ts`](agent/src/httpsource.ts).
+Anything else (another kind of database, a websocket) means writing one more file like [`agent/src/httpsource.ts`](agent/src/httpsource.ts).
 
 ## Try it
 
@@ -187,7 +188,7 @@ Create `.env.local` with `VITE_CONTRACT_ID=<your contract>` and run `npm run dev
 - **The agent service is not hosted.** It runs on the author's computer.
 - **You are trusting whoever runs the agent service.** It holds every card's sealed text and data-source keys in a file on its disk, and it sees every request. The contract can instead require the agent service to prove it is running inside tamper-proof hardware (a TEE) before it may deliver answers. That code comes from the Shade Agent template and we have not run it. Our deployment uses the simpler mode where the contract's owner approves the agent by hand.
 - **Paying from other chains has never moved real money.** The "Add funds" panel gets real deposit addresses and quotes from NEAR Intents on mainnet (checked: 1 NEAR cost about 0.045 SOL), but no payment has been sent through it, so the arrival step is untested. It tops up your NEAR account; it does not pay a card directly from another chain.
-- **Two kinds of data source.** Web APIs (read-only GET requests with one secret header) and Solana Yellowstone gRPC feeds. APIs that need a login flow, POST requests or a database connection are not supported. The Solana feed is live only: it can measure what is happening now, not look up history. The web API source was tested directly against the agent code, not through a paid job.
+- **Three kinds of data source.** Web APIs (read-only GET requests with one secret header), Postgres databases (read-only queries) and Solana Yellowstone gRPC feeds. APIs that need a login flow or POST requests, and databases other than Postgres, are not supported. The Solana feed is live only: it can measure what is happening now, not look up history. The web API and database sources were tested directly against the agent code, not through a paid job.
 - **A bad answer still costs the customer.** Ratings warn later customers; they do not help the first one.
 - **Ratings can be bought.** An owner cannot rate their own card, but could hire it from a second account. Each fake job costs them 15% in fees.
 - **A card's instructions can leak.** The agent refuses to reveal them and filters word-for-word copies out of answers, but a model can sometimes be talked into paraphrasing them. Data-source tokens are not affected, because the model never sees them.
@@ -204,7 +205,7 @@ Everything here was written during the hackathon except the parts listed below.
 
 **Contract** (Rust): `near-sdk`, `near-contract-standards` (the NFT standard), `shade-attestation`, `hex`, `serde`.
 
-**Agent service** (TypeScript): `@neardefi/shade-agent-js`, `hono` and `@hono/node-server` (web server), `@grpc/grpc-js` and `@grpc/proto-loader` (the Solana feed), `dotenv`, `tsx`. The two files in `agent/proto/` are the public Yellowstone gRPC interface definitions from [rpcpool/yellowstone-grpc](https://github.com/rpcpool/yellowstone-grpc) (Apache-2.0).
+**Agent service** (TypeScript): `@neardefi/shade-agent-js`, `hono` and `@hono/node-server` (web server), `@grpc/grpc-js` and `@grpc/proto-loader` (the Solana feed), `pg` (Postgres), `dotenv`, `tsx`. The two files in `agent/proto/` are the public Yellowstone gRPC interface definitions from [rpcpool/yellowstone-grpc](https://github.com/rpcpool/yellowstone-grpc) (Apache-2.0).
 
 **Services**: [NEAR AI Cloud](https://cloud.near.ai) for the AI model, the [NEAR Intents 1Click API](https://docs.near-intents.org) for prices, a Yellowstone gRPC feed for Solana data, [OpenStreetMap Nominatim](https://nominatim.org) for looking up places.
 

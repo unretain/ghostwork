@@ -10,7 +10,7 @@ import { ConnectButtons, SessionBar, toast, useBusy } from "./shared";
 
 // Starting points. Each is only worth paying for once the owner adds what they alone
 // have: a private data feed, or their own documents.
-type SourceKind = "none" | "api" | "solana" | "radius";
+type SourceKind = "none" | "api" | "db" | "solana" | "radius";
 const EXAMPLES: { label: string; title: string; skill: string; about: string; prompt: string; source?: SourceKind }[] = [
   {
     label: "Solana data analyst (needs your gRPC feed)",
@@ -29,6 +29,15 @@ const EXAMPLES: { label: string; title: string; skill: string; about: string; pr
     prompt:
       "Answer the customer's question using data from your tool. Look the data up before answering and give the exact figures it returns. If the data does not cover the question, say so.",
     source: "api",
+  },
+  {
+    label: "Answers from your database",
+    title: "Sable",
+    skill: "Answers questions from our database",
+    about: "Ask a question about our records.",
+    prompt:
+      "Answer the customer's question from the database. Look at the tables first, then query. Give exact figures and say what period or filter you used. If the data does not cover the question, say so.",
+    source: "db",
   },
   {
     label: "Hires people for real-world tasks",
@@ -64,6 +73,9 @@ function MintForm({ minPrice, onMinted }: { minPrice: string; onMinted: () => vo
   const useSource = kind === "solana";
   const useRadius = kind === "radius";
   const useApi = kind === "api";
+  const useDb = kind === "db";
+  const [dbUrl, setDbUrl] = useState("");
+  const [dbGuide, setDbGuide] = useState("");
   const [apiUrl, setApiUrl] = useState("");
   const [apiHeader, setApiHeader] = useState("Authorization");
   const [apiSecret, setApiSecret] = useState("");
@@ -96,6 +108,8 @@ function MintForm({ minPrice, onMinted }: { minPrice: string; onMinted: () => vo
           ? "Enter the feed's endpoint and token"
           : useApi && (!/^https:\/\/.+/i.test(apiUrl.trim()) || !apiHeader.trim() || !apiSecret.trim() || apiGuide.trim().length < 10)
             ? "Enter the API's https address, its header and key, and a short guide to its paths"
+            : useDb && !/^postgres(ql)?:\/\/.+@.+/i.test(dbUrl.trim())
+              ? "Enter the database's connection string (postgres://user:password@host/database)"
           : !priceYocto || BigInt(priceYocto) < BigInt(minPrice)
             ? `Price must be at least ${near(minPrice)} NEAR`
             : null;
@@ -120,6 +134,8 @@ function MintForm({ minPrice, onMinted }: { minPrice: string; onMinted: () => vo
         text += `\n--- DATA SOURCE ---\n${JSON.stringify({ type: "solana-yellowstone-grpc", endpoint: endpoint.trim(), token: token.trim() })}`;
       } else if (useApi) {
         text += `\n--- DATA SOURCE ---\n${JSON.stringify({ type: "http-api", base_url: apiUrl.trim(), header_name: apiHeader.trim(), header_value: apiSecret.trim(), guide: apiGuide.trim() })}`;
+      } else if (useDb) {
+        text += `\n--- DATA SOURCE ---\n${JSON.stringify({ type: "postgres", url: dbUrl.trim(), guide: dbGuide.trim() })}`;
       } else if (useRadius) {
         text += `\n--- DATA SOURCE ---\n${JSON.stringify({ type: "radius-tasks" })}`;
       }
@@ -150,7 +166,7 @@ function MintForm({ minPrice, onMinted }: { minPrice: string; onMinted: () => vo
       <div className="mint__form">
         <h2 className="panel-title">Mint an agent card</h2>
         <p className="muted mint__lead">
-          People pay for a card that can do something a free chatbot can't. Give yours your own documents, an API or feed you have access to, or let
+          People pay for a card that can do something a free chatbot can't. Give yours your own documents, a database, an API or feed you have access to, or let
           it hire people. It earns 85% of every job.
         </p>
         <div className="examples">
@@ -215,6 +231,7 @@ function MintForm({ minPrice, onMinted }: { minPrice: string; onMinted: () => vo
           <select className="field field--select" value={kind} onChange={(e) => setKind(e.target.value as SourceKind)} aria-label="What else the agent can use">
             <option value="none">Nothing else: instructions and pasted knowledge only</option>
             <option value="api">A web API I have a key for</option>
+            <option value="db">A Postgres database (read-only)</option>
             <option value="solana">A live Solana feed (Yellowstone gRPC)</option>
             <option value="radius">It can hire people for real-world tasks (Radius)</option>
           </select>
@@ -235,6 +252,24 @@ function MintForm({ minPrice, onMinted }: { minPrice: string; onMinted: () => vo
                 value={apiGuide}
                 onChange={(e) => setApiGuide(e.target.value)}
                 aria-label="Guide to the API"
+              />
+            </div>
+          )}
+          {useDb && (
+            <div className="source">
+              <span className="muted">
+                While doing a job the agent can list your tables and run SELECT queries. Every query runs read-only with a time limit and returns at
+                most 200 rows. Use a database user that can only read the tables you want customers to get answers from.
+              </span>
+              <input className="field" type="password" placeholder="postgres://user:password@host:5432/database" value={dbUrl} onChange={(e) => setDbUrl(e.target.value)} aria-label="Database connection string" autoComplete="off" />
+              <textarea
+                className="field field--area"
+                rows={2}
+                maxLength={3000}
+                placeholder="Optional notes on what the tables and columns mean."
+                value={dbGuide}
+                onChange={(e) => setDbGuide(e.target.value)}
+                aria-label="Notes about the data"
               />
             </div>
           )}

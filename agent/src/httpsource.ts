@@ -34,7 +34,7 @@ export function isHttpSource(cfg: unknown): cfg is HttpSource {
 }
 
 /** Addresses on this machine or a private network, which a card must not be able to reach. */
-function isPrivateAddress(ip: string) {
+export function isPrivateAddress(ip: string) {
   if (ip.includes(":")) {
     const v6 = ip.toLowerCase();
     return v6 === "::1" || v6 === "::" || v6.startsWith("fc") || v6.startsWith("fd") || v6.startsWith("fe80") || v6.startsWith("::ffff:");

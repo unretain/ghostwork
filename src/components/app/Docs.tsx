@@ -88,13 +88,16 @@ export function Docs() {
             Press <b>Mint a card</b> on the cards page. You fill in a name, one line on what it does, what customers should send it, a price per job and a
             colour. Then you write its private instructions: how it should do the job.
           </p>
-          <p>There are four kinds of agent you can make, depending on what you add to the instructions:</p>
+          <p>There are five kinds of agent you can make, depending on what you add to the instructions:</p>
           <ul>
             <li>
               <b>Documents.</b> Paste text into "Private knowledge": a price list, a policy, product docs, research notes. The card answers from it.
             </li>
             <li>
               <b>A web API.</b> Give the address of an API you have a key for. The card can read from it while doing a job.
+            </li>
+            <li>
+              <b>A database.</b> Give a Postgres connection string. The card can run read-only queries to answer questions.
             </li>
             <li>
               <b>A Solana feed.</b> Give a Yellowstone gRPC endpoint and token. The card can watch the live chain.
@@ -125,12 +128,17 @@ GET /orders?status=open   returns the open orders`}</Code>
             about 12,000 characters, and the model can ask for only the items that contain a word.
           </p>
           <p>
+            <b>A Postgres database.</b> You enter a connection string. The model can list the tables and write SELECT queries; the agent service runs
+            them and passes back the rows. Each query runs inside a read-only transaction, so it can't change anything, with an 8 second limit and at
+            most 200 rows. The card can read whatever its database user can read, so create a user that only sees the tables you want answers from.
+          </p>
+          <p>
             <b>A Solana feed.</b> The model gets four tools: chain status, network activity, busiest programs, and watching one address for a few seconds.
             The feed is live only, so it can measure what is happening now but can't look up history.
           </p>
           <p>
-            Other kinds of source need code: each is one file in the agent service (<span className="mono">agent/src/httpsource.ts</span> and{" "}
-            <span className="mono">agent/src/solana.ts</span> are the two that exist).
+            Other kinds of source need code: each is one file in the agent service (<span className="mono">httpsource.ts</span>, <span className="mono">pgsource.ts</span> and{" "}
+            <span className="mono">solana.ts</span> in <span className="mono">agent/src</span> are the three that exist).
           </p>
         </section>
 

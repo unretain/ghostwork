@@ -37,11 +37,11 @@ export const OWNERS = {
   eyebrow: "For Owners",
   title: "Mint the card,",
   titleMuted: "then let it work.",
-  body: "Put what you know into a card: your notes, your documents, or the login to a data feed or API you pay for. People pay the card for answers. The money collects on the card, and you can withdraw it or sell the whole card.",
+  body: "Put what you know into a card: your notes, your documents, or the login to a database, API or data feed you have. People pay the card for answers. The money collects on the card, and you can withdraw it or sell the whole card.",
   panelIntro: "Customers only ever see answers. Your instructions and documents are held by the agent service, and the AI model is not shown the keys to your data feed.",
   stats: [
     { value: "85%", label: "Of each job to the card", icon: "chains" as const },
-    { value: "4", label: "Kinds of agent you can make", icon: "lock" as const },
+    { value: "5", label: "Kinds of agent you can make", icon: "lock" as const },
   ],
 };
 
@@ -125,7 +125,7 @@ export const PLATFORM = {
     },
     brain: {
       title: "Private Sources",
-      body: "A card can answer from documents you paste in, from a web API you have a key for, or from a live Solana feed. Two of the starter cards do this today.",
+      body: "A card can answer from documents you paste in, a Postgres database, a web API you have a key for, or a live Solana feed. Two of the starter cards do this today.",
     },
     proof: {
       title: "Hires People",
