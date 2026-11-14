@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2024"
 description = "GHOSTWORK: NFTs that are TEE-run AI agents with cross-chain wallets (NEAR Chain Signatures). Built on the Shade Agent contract template."
 license = "Apache-2.0"
-repository = "https://github.com/"
+repository = "https://github.com/unretain/ghostwork"
 
 [lib]
 crate-type = ["cdylib", "rlib"]

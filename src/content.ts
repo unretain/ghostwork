@@ -3,7 +3,7 @@
 export const LINKS = {
   mint: "#/app",
   myAgents: "#/app",
-  github: "https://github.com/",
+  github: "https://github.com/unretain/ghostwork",
   docs: "https://docs.near.org/",
   chainSignatures: "https://docs.near.org/chain-abstraction/chain-signatures",
   aiCloud: "https://docs.near.ai/",
