@@ -1,0 +1,22 @@
+services:
+  ghostwork-agent:
+    environment:
+      AGENT_CONTRACT_ID: ${AGENT_CONTRACT_ID}
+      SPONSOR_ACCOUNT_ID: ${SPONSOR_ACCOUNT_ID}
+      SPONSOR_PRIVATE_KEY: ${SPONSOR_PRIVATE_KEY}
+      NEAR_AI_API_KEY: ${NEAR_AI_API_KEY}
+      NODE_ENV: production
+      DATA_DIR: /data
+    platform: linux/amd64
+    # replaced with your image digest by `shade deploy`
+    image: your-dockerhub-user/ghostwork-agent:latest
+    container_name: ghostwork-agent
+    ports:
+      - 3000:3000
+    volumes:
+      - /var/run/dstack.sock:/var/run/dstack.sock
+      # sealed skills live here; inside the TEE this volume is encrypted
+      - agent-data:/data
+    restart: always
+volumes:
+  agent-data:

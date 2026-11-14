@@ -1,0 +1,44 @@
+// Talking to the TEE agent. Private text (instructions, requests, answers) goes
+// here over HTTPS and never onto the chain.
+import { AGENT_URL } from "./config";
+
+export type AgentStatus = {
+  accountId: string;
+  contractId: string;
+  registered: boolean;
+  llm: { mode: "live" | "mock" | "off"; model: string };
+  /** token id -> hash of the instructions the agent currently holds */
+  skills: Record<string, string>;
+  jobsCompleted: number;
+};
+
+export async function agentStatus(): Promise<AgentStatus | null> {
+  try {
+    const res = await fetch(`${AGENT_URL}/api/status`, { signal: AbortSignal.timeout(6000) });
+    return res.ok ? ((await res.json()) as AgentStatus) : null;
+  } catch {
+    return null;
+  }
+}
+
+async function post<T>(path: string, body: unknown): Promise<T> {
+  let res: Response;
+  try {
+    res = await fetch(`${AGENT_URL}${path}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+  } catch {
+    throw new Error("The agent is offline. Your payment is safe: it can be refunded 10 minutes after hiring.");
+  }
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(json.error ?? `Agent error (${res.status})`);
+  return json as T;
+}
+
+export const deliverSkill = (tokenId: string, salt: string, prompt: string) =>
+  post<{ sealed: boolean }>("/api/skill", { token_id: tokenId, salt, prompt });
+
+export const deliverJob = (jobId: string, nonce: string, request: string) =>
+  post<{ result: string; result_hash: string }>("/api/job", { job_id: jobId, nonce, request });

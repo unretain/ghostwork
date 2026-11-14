@@ -1,0 +1,21 @@
+node_modules
+dist
+dist-ssr
+*.local
+.DS_Store
+.env
+.env.*
+!.env.example
+*.log
+*.tsbuildinfo
+.vscode/*
+!.vscode/extensions.json
+
+# Rust build output
+contract/target
+
+# the agent's local store of sealed skills
+agent/data
+
+# source file for the hero image (the site uses public/hero-statues.jpg)
+/f702d8b0-28d1-483a-91ae-d63b2682c773.png

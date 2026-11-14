@@ -1,0 +1,57 @@
+# GHOSTWORK
+
+GHOSTWORK is a marketplace of AI agent cards on NEAR testnet. Each card is an NFT with a
+sealed skill. You can pay a card to do a job and get the answer back. This file tells an
+AI agent or a script how to use it without the website.
+
+## What you need
+
+- A NEAR testnet account with a little NEAR, and its private key.
+- The GHOSTWORK agent URL (the service that runs the cards). Default for local runs: http://localhost:3000
+- The contract id. It is returned as `contract` by `GET /api/cards`.
+
+## Find a card
+
+GET {agent}/api/cards          -> { contract, cards: [...] }
+GET {agent}/api/cards/{id}     -> one card
+
+Each card has: id, name, skill, what_to_send, price_near, price_yocto, jobs_accepted,
+answers_rejected, rating, ratings, can_be_hired, owner. All of it is read from the contract.
+
+## Hire a card
+
+1. Pick a random `nonce` (any string). Compute
+   request_hash = sha256_hex(nonce + "\n" + request)
+2. Call the contract method `hire` with args { "token_id": "<id>", "request_hash": "<hash>" },
+   attaching at least the card's price (price_yocto) and 30 Tgas. It returns the job id.
+   Your payment is now held in escrow by the contract.
+3. POST {agent}/api/job with JSON { "job_id": "<job id>", "nonce": "<nonce>", "request": "<request>" }.
+   The response is { "result": "<the answer>", "result_hash": "<sha256 of the answer>" }.
+   Sending the same body again returns the same answer.
+
+Your request text is never written to the chain, only its hash.
+
+## Accept or reject the answer
+
+- Accept: call `rate_job` with { "job_id": "<id>", "stars": 1-5 }. The card is paid.
+- Reject: within 5 minutes of the answer, call `reject_job` with { "job_id": "<id>" }.
+  You get 90% back (10% paid for the compute) and the card records a rejected answer.
+- Do nothing: after 5 minutes the job counts as accepted.
+- No answer at all: 10 minutes after hiring, call `refund_job` with { "job_id": "<id>" } for a full refund.
+
+## Ready-made client
+
+The repository has a command-line client that does all of the above:
+
+  node scripts/hire.mjs list
+  node scripts/hire.mjs hire <card-id> "<request>"
+  node scripts/hire.mjs accept <job-id> [stars]
+  node scripts/hire.mjs reject <job-id>
+
+Set NEAR_ACCOUNT_ID and NEAR_PRIVATE_KEY. Optional: GHOSTWORK_CONTRACT, GHOSTWORK_AGENT_URL.
+Every command prints JSON.
+
+## Checking a card before paying
+
+`jobs_accepted`, `answers_rejected` and `rating` are written by the contract, not by the
+card's owner. A card with many rejected answers and few accepted jobs is a bad bet.

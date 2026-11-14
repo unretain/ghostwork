@@ -1,0 +1,172 @@
+/* kyd-button recipe: 6 variants, 3 sizes, plus the two hero CTA presets. */
+.kyd-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-family: var(--sans);
+  border: 1px solid transparent;
+  cursor: pointer;
+  transform: scale(1);
+  filter: brightness(1);
+  white-space: nowrap;
+  transition-property: transform, filter, border-color, color, background-color, box-shadow;
+  transition-duration: 220ms;
+  transition-timing-function: var(--ease-btn);
+}
+.kyd-button .cta-arrow {
+  display: inline-block;
+  transition: transform 220ms var(--ease-btn);
+}
+.kyd-button:hover .cta-arrow {
+  transform: translateX(3px);
+}
+.kyd-button:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.45);
+  outline-offset: 2px;
+}
+.kyd-button:active {
+  transform: scale(0.96);
+}
+
+/* sizes */
+.kyd-button--section {
+  min-height: 40px;
+  border-radius: 8px;
+  padding: 11px 27px;
+  font-size: 14px;
+  line-height: 21px;
+}
+.kyd-button--compact {
+  border-radius: 8px;
+  padding: 12px 24px;
+  font-size: 13px;
+  line-height: 1;
+}
+.kyd-button--hero {
+  border-radius: 8px;
+  padding: 14px 24px;
+  font-size: 14px;
+  letter-spacing: 0;
+  line-height: 1;
+}
+
+/* variants */
+.kyd-button--primary {
+  background: var(--accent);
+  color: var(--page-bg);
+  font-weight: 600;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0), inset 0 1px 0 rgba(255, 255, 255, 0);
+}
+.kyd-button--primary:hover {
+  transform: scale(1.02);
+  filter: brightness(1.06);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.28);
+}
+.kyd-button--primary:active {
+  transform: scale(0.96);
+  filter: brightness(1);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0), inset 0 1px 0 rgba(255, 255, 255, 0);
+}
+
+.kyd-button--outline {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--fg);
+  font-weight: 500;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.1);
+}
+.kyd-button--outline:hover {
+  background: var(--accent);
+  color: var(--accent-fg);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.18), 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+.kyd-button--outline:active {
+  background: var(--accent);
+  color: var(--accent-fg);
+  filter: brightness(0.96);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.1);
+}
+
+.kyd-button--ghost {
+  background: transparent;
+  color: var(--fg-muted);
+  font-weight: 500;
+}
+.kyd-button--ghost:hover {
+  color: var(--fg);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.kyd-button--dark {
+  background: var(--surface-raised);
+  color: var(--fg);
+  font-weight: 600;
+}
+.kyd-button--dark:hover {
+  background: rgba(255, 255, 255, 0.16);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.28);
+}
+.kyd-button--dark:active {
+  box-shadow: none;
+}
+
+.kyd-button--outline-dark {
+  background: transparent;
+  border-color: var(--border-strong);
+  color: var(--fg-muted);
+  font-weight: 500;
+}
+.kyd-button--outline-dark:hover {
+  border-color: var(--fg);
+  color: var(--fg);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+/* hero CTA presets */
+.kyd-button--cool {
+  background: var(--cool-display);
+  color: var(--page-bg);
+  font-weight: 700;
+  padding-inline: 16px;
+  border-radius: 8px;
+  box-shadow: var(--shadow-cool-glow);
+}
+.kyd-button--cool:hover {
+  transform: scale(1.02);
+  filter: brightness(1.06);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.28),
+    var(--shadow-cool-glow);
+}
+.kyd-button--cool:active {
+  transform: scale(0.96);
+  box-shadow: var(--shadow-cool-glow);
+}
+
+.kyd-button--line {
+  background: transparent;
+  border-color: rgba(248, 248, 248, 0.44);
+  color: var(--fg);
+  font-weight: 500;
+  padding: 14px 24px;
+}
+.kyd-button--line:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(248, 248, 248, 0.64);
+}
+.kyd-button--line:active {
+  background: rgba(255, 255, 255, 0.12);
+  transform: scale(0.96);
+}
+
+/* nav "My Tickets" style */
+.kyd-button--frame {
+  background: var(--frame-bg);
+  color: var(--warm-display);
+  font-weight: 500;
+  box-shadow: 0 0 2px 1px rgba(255, 255, 255, 0.15);
+  transition-duration: 140ms;
+}
+.kyd-button--frame:hover {
+  background: var(--surface-raised);
+  transition-duration: 60ms;
+}
