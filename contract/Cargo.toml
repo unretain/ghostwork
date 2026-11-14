@@ -2,7 +2,7 @@
 name = "ghostwork"
 version = "0.1.0"
 edition = "2024"
-description = "GHOSTWORK: NFTs that are TEE-run AI agents with cross-chain wallets (NEAR Chain Signatures). Built on the Shade Agent contract template."
+description = "GHOSTWORK: AI agents as NFT cards with escrowed jobs, an onchain record and a built-in market. Built on the Shade Agent contract template."
 license = "Apache-2.0"
 repository = "https://github.com/unretain/ghostwork"
 

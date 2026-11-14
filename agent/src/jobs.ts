@@ -11,8 +11,6 @@ import { commitment, getResult, getSkill, putResult, putSkill, sha256Hex, type R
 
 // instructions plus any private knowledge the owner seals with them
 const MAX_PROMPT = 60_000;
-// matches REVIEW_WINDOW_MS in the contract
-const REVIEW_WINDOW_MS = 5 * 60 * 1000;
 const MAX_REQUEST = 4000;
 
 export class HttpError extends Error {
@@ -25,11 +23,19 @@ export class HttpError extends Error {
 }
 
 type CardView = { token_id: string; title: string | null; skill: string; prompt_hash: string | null };
-type JobView = { job_id: string; token_id: string; request_hash: string; status: "Open" | "Delivered" | "Done" | "Rejected" };
+type JobView = { job_id: string; token_id: string; request_hash: string; status: "Open" | "Done" };
 
 // The contract returns null for a missing card or job; the SDK type does not allow for that.
-async function view<T>(agent: ShadeClient, methodName: string, args: Record<string, unknown>) {
-  return (await agent.view({ methodName, args })) as unknown as T | null;
+export async function view<T>(agent: ShadeClient, methodName: string, args: Record<string, unknown>) {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return (await agent.view({ methodName, args })) as unknown as T | null;
+    } catch (e) {
+      // a dropped connection to the NEAR node: wait and try again
+      if (attempt >= 4) throw e;
+      await new Promise((r) => setTimeout(r, 800 * attempt));
+    }
+  }
 }
 
 export const counters = { jobsCompleted: 0, skillsSealed: 0 };
@@ -86,7 +92,12 @@ export async function runJob(agent: ShadeClient, body: Record<string, unknown>) 
 }
 
 async function work(agent: ShadeClient, jobId: string, requestHash: string, request: string): Promise<Result> {
-  const job = await view<JobView>(agent, "get_job", { job_id: jobId });
+  // A job paid a moment ago may not be visible on the node we read from yet, so wait briefly.
+  let job = await view<JobView>(agent, "get_job", { job_id: jobId });
+  for (let i = 0; !job && i < 6; i++) {
+    await new Promise((r) => setTimeout(r, 1500));
+    job = await view<JobView>(agent, "get_job", { job_id: jobId });
+  }
   if (!job) throw new HttpError(404, "Job not found (it may have been refunded)");
   if (job.request_hash !== requestHash) throw new HttpError(403, "Request doesn't match the hash paid for");
   if (job.status !== "Open") throw new HttpError(410, "This job was already completed");
@@ -122,7 +133,7 @@ async function work(agent: ShadeClient, jobId: string, requestHash: string, requ
     } catch (e) {
       console.error(`complete_job ${jobId} attempt ${attempt} failed:`, (e as Error).message);
       const now = await view<JobView & { result_hash: string | null }>(agent, "get_job", { job_id: jobId }).catch(() => null);
-      if (now?.status === "Delivered" && now.result_hash === resultHash) recorded = true;
+      if (now?.status === "Done" && now.result_hash === resultHash) recorded = true;
       else if (attempt < 3) await new Promise((r) => setTimeout(r, 1500 * attempt));
     }
   }
@@ -131,14 +142,6 @@ async function work(agent: ShadeClient, jobId: string, requestHash: string, requ
   }
   const result = { requestHash, result: answer, resultHash };
   putResult(jobId, result);
-  // Once the customer's review window has passed, release the escrow to the card.
-  // Fails harmlessly if the customer already accepted or rejected the answer.
-  setTimeout(() => {
-    agent
-      .call({ methodName: "settle_job", args: { job_id: jobId }, gas: BigInt("30000000000000") })
-      .then(() => console.log(`job ${jobId} settled`))
-      .catch(() => {});
-  }, REVIEW_WINDOW_MS + 20_000).unref();
   counters.jobsCompleted++;
   console.log(`job ${jobId} (card ${job.token_id}) completed`);
   return result;

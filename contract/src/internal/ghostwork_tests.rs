@@ -1,7 +1,7 @@
 // GHOSTWORK agent cards: minting, hiring, escrow, ratings, claims, transfers.
 // A child of the template's unit_tests module so it can reuse its helpers.
 use super::*;
-use crate::ghostwork::{MIN_PRICE, REFUND_AFTER_MS, REVIEW_WINDOW_MS};
+use crate::ghostwork::{MIN_PRICE, REFUND_AFTER_MS};
 use near_contract_standards::non_fungible_token::core::NonFungibleTokenCore;
 use near_sdk::json_types::U128;
 
@@ -47,20 +47,9 @@ fn hire(contract: &mut Contract, customer: AccountId) -> U64 {
     contract.hire("0".into(), hash('b'))
 }
 
-// The agent delivers an answer: the job is now under review, the card not yet paid.
-fn deliver(contract: &mut Contract, job_id: U64) {
+fn complete(contract: &mut Contract, job_id: U64) {
     testing_env!(get_context(accounts(2), false).build());
     contract.complete_job(job_id, hash('c'));
-}
-
-// Deliver, then let the review window pass and settle: the card is paid.
-fn complete(contract: &mut Contract, job_id: U64) {
-    deliver(contract, job_id);
-    testing_env!(
-        get_context_with_deposit_and_timestamp(accounts(1), false, None, Some(REVIEW_WINDOW_MS))
-            .build()
-    );
-    contract.settle_job(job_id);
 }
 
 #[test]
@@ -463,108 +452,6 @@ fn test_art_is_stored_on_the_nft() {
     assert!(meta.extra.unwrap().contains("\"color\""));
     let card = contract.get_card("0".into()).unwrap();
     assert!(card.media.is_some());
-}
-
-// ---- review window: accept, reject, settle ----
-
-#[test]
-fn test_delivered_answer_is_held_for_review() {
-    let mut contract = setup_card();
-    let job_id = hire(&mut contract, accounts(4));
-    deliver(&mut contract, job_id);
-    let card = contract.get_card("0".into()).unwrap();
-    assert_eq!(card.balance.0, 0);
-    assert_eq!(card.jobs_done.0, 0);
-    assert_eq!(contract.get_job(job_id).unwrap().status, JobStatus::Delivered);
-}
-
-#[test]
-fn test_reject_refunds_and_strikes_the_card() {
-    let mut contract = setup_card();
-    let job_id = hire(&mut contract, accounts(4));
-    deliver(&mut contract, job_id);
-    testing_env!(get_context(accounts(4), false).build());
-    let _ = contract.reject_job(job_id);
-
-    let card = contract.get_card("0".into()).unwrap();
-    assert_eq!(card.balance.0, 0);
-    assert_eq!(card.earned.0, 0);
-    assert_eq!(card.jobs_done.0, 0);
-    assert_eq!(card.rejected.0, 1);
-    assert_eq!(contract.get_job(job_id).unwrap().status, JobStatus::Rejected);
-    assert_eq!(contract.get_stats().jobs_completed.0, 0);
-}
-
-#[test]
-#[should_panic(expected = "The review window has closed")]
-fn test_reject_after_window() {
-    let mut contract = setup_card();
-    let job_id = hire(&mut contract, accounts(4));
-    deliver(&mut contract, job_id);
-    testing_env!(
-        get_context_with_deposit_and_timestamp(accounts(4), false, None, Some(REVIEW_WINDOW_MS))
-            .build()
-    );
-    let _ = contract.reject_job(job_id);
-}
-
-#[test]
-#[should_panic(expected = "Only the customer can reject")]
-fn test_reject_only_customer() {
-    let mut contract = setup_card();
-    let job_id = hire(&mut contract, accounts(4));
-    deliver(&mut contract, job_id);
-    testing_env!(get_context(accounts(5), false).build());
-    let _ = contract.reject_job(job_id);
-}
-
-#[test]
-#[should_panic(expected = "Only a delivered, unaccepted answer can be rejected")]
-fn test_reject_after_accepting() {
-    let mut contract = setup_card();
-    let job_id = hire(&mut contract, accounts(4));
-    deliver(&mut contract, job_id);
-    testing_env!(get_context(accounts(4), false).build());
-    contract.rate_job(job_id, 5);
-    let _ = contract.reject_job(job_id);
-}
-
-#[test]
-#[should_panic(expected = "The customer can still reject this answer")]
-fn test_settle_before_window() {
-    let mut contract = setup_card();
-    let job_id = hire(&mut contract, accounts(4));
-    deliver(&mut contract, job_id);
-    testing_env!(get_context(accounts(1), false).build());
-    contract.settle_job(job_id);
-}
-
-#[test]
-fn test_rating_a_delivered_answer_accepts_it() {
-    let mut contract = setup_card();
-    let job_id = hire(&mut contract, accounts(4));
-    deliver(&mut contract, job_id);
-    testing_env!(get_context(accounts(4), false).build());
-    contract.rate_job(job_id, 5);
-    let card = contract.get_card("0".into()).unwrap();
-    assert_eq!(card.balance.0, PRICE * 85 / 100);
-    assert_eq!(card.jobs_done.0, 1);
-    assert_eq!(contract.get_job(job_id).unwrap().status, JobStatus::Done);
-}
-
-#[test]
-fn test_claim_settles_jobs_past_their_window() {
-    let mut contract = setup_card();
-    let job_id = hire(&mut contract, accounts(4));
-    deliver(&mut contract, job_id);
-    testing_env!(
-        get_context_with_deposit_and_timestamp(accounts(3), false, None, Some(REVIEW_WINDOW_MS))
-            .build()
-    );
-    let _ = contract.claim("0".into());
-    let card = contract.get_card("0".into()).unwrap();
-    assert_eq!(card.earned.0, PRICE * 85 / 100);
-    assert_eq!(card.balance.0, 0);
 }
 
 // ---- chosen colour ----

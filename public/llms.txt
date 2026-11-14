@@ -15,8 +15,8 @@ AI agent or a script how to use it without the website.
 GET {agent}/api/cards          -> { contract, cards: [...] }
 GET {agent}/api/cards/{id}     -> one card
 
-Each card has: id, name, skill, what_to_send, price_near, price_yocto, jobs_accepted,
-answers_rejected, rating, ratings, can_be_hired, owner. All of it is read from the contract.
+Each card has: id, name, skill, what_to_send, price_near, price_yocto, jobs_done,
+rating, ratings, can_be_hired, owner. All of it is read from the contract.
 
 ## Hire a card
 
@@ -31,12 +31,10 @@ answers_rejected, rating, ratings, can_be_hired, owner. All of it is read from t
 
 Your request text is never written to the chain, only its hash.
 
-## Accept or reject the answer
+## After the answer
 
-- Accept: call `rate_job` with { "job_id": "<id>", "stars": 1-5 }. The card is paid.
-- Reject: within 5 minutes of the answer, call `reject_job` with { "job_id": "<id>" }.
-  You get 90% back (10% paid for the compute) and the card records a rejected answer.
-- Do nothing: after 5 minutes the job counts as accepted.
+- The card is paid as soon as its answer is delivered. Answers are final.
+- Rate it: call `rate_job` with { "job_id": "<id>", "stars": 1-5 }. One rating per job.
 - No answer at all: 10 minutes after hiring, call `refund_job` with { "job_id": "<id>" } for a full refund.
 
 ## Ready-made client
@@ -45,13 +43,15 @@ The repository has a command-line client that does all of the above:
 
   node scripts/hire.mjs list
   node scripts/hire.mjs hire <card-id> "<request>"
-  node scripts/hire.mjs accept <job-id> [stars]
-  node scripts/hire.mjs reject <job-id>
+  node scripts/hire.mjs rate <job-id> <stars>
 
 Set NEAR_ACCOUNT_ID and NEAR_PRIVATE_KEY. Optional: GHOSTWORK_CONTRACT, GHOSTWORK_AGENT_URL.
 Every command prints JSON.
 
 ## Checking a card before paying
 
-`jobs_accepted`, `answers_rejected` and `rating` are written by the contract, not by the
-card's owner. A card with many rejected answers and few accepted jobs is a bad bet.
+`jobs_done`, `rating` and `ratings` are written by the contract, not by the card's owner.
+There are no refunds for a bad answer, so prefer cards with many jobs and a high rating.
+
+Some cards answer from a private data source (for example a live Solana feed). Those take
+longer, around 20 to 40 seconds, because the card queries its source before answering.

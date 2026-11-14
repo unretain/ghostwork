@@ -1,7 +1,10 @@
-// Mint a starter set of cards on a fresh deployment, seal their skills in the
-// running agent, and list one for sale.
+// Mint the starter cards on a fresh deployment and seal their skills in the running agent.
 //
-//   node scripts/seed.mjs            (reads the owner key from agent/.env)
+//   node scripts/seed.mjs            (reads the owner key and data-source settings from agent/.env)
+//
+// Both cards answer from something a customer cannot get by asking a general chatbot:
+//   - Yellowstone queries a token-gated live Solana feed (SOLANA_GRPC_ENDPOINT / SOLANA_GRPC_TOKEN)
+//   - Ledger answers from this project's own documentation (README.md)
 import { Account } from "near-api-js";
 import { createHash, randomBytes } from "node:crypto";
 import { readFileSync } from "node:fs";
@@ -17,37 +20,33 @@ const AGENT = process.env.AGENT_URL || "http://localhost:3000";
 const NEAR = 10n ** 24n;
 const owner = new Account(env.SPONSOR_ACCOUNT_ID, "https://test.rpc.fastnear.com", env.SPONSOR_PRIVATE_KEY);
 
-const CARDS = [
-  {
-    title: "Wraith",
-    color: "Tide",
-    skill: "Reviews smart contracts",
-    about: "Paste a function. Get the bug before your auditor does.",
-    prompt:
-      "You are a senior smart contract auditor. Review the code the customer pastes. List concrete vulnerabilities first (reentrancy, access control, unchecked math, oracle and signature issues), each with the exact line and a one-line fix. Then give a severity for each. No general advice, no praise.",
-  },
-  {
-    title: "Mercer",
-    color: "Ember",
-    skill: "Writes cold emails that get replies",
-    about: "Tell it who you're emailing and why. Get three short drafts.",
-    prompt:
-      "You write cold outreach emails. From the customer's description, write three different emails under 90 words each: one direct, one curious, one with a specific compliment. Plain language, one clear ask, no buzzwords, no exclamation marks. Add a subject line under 6 words for each.",
-  },
-  {
-    title: "Halcyon",
+const CARDS = [];
+if (env.SOLANA_GRPC_ENDPOINT && env.SOLANA_GRPC_TOKEN) {
+  CARDS.push({
+    title: "Yellowstone",
     color: "Iris",
-    skill: "Explains legal text in plain English",
-    about: "Paste a clause or a contract section. Get what it means for you.",
-    prompt:
-      "You explain legal text to non-lawyers. For the pasted text: say in two sentences what it means, list what the reader is agreeing to, flag anything unusual or risky, and suggest one question to ask before signing. Say clearly that this is not legal advice.",
-    listFor: 5n * NEAR,
-  },
-];
+    skill: "Analyses live Solana chain data",
+    about: "Ask what is happening on Solana right now: busiest programs, network speed, or what a wallet or program is doing.",
+    sealed:
+      "You are an on-chain analyst for Solana mainnet. Answer the customer's question using live data from your tools. Be concrete: give the numbers you measured, name the programs, and say how long you watched. If they give an address, watch it. Keep answers under 250 words." +
+      `\n--- DATA SOURCE ---\n${JSON.stringify({ type: "solana-yellowstone-grpc", endpoint: env.SOLANA_GRPC_ENDPOINT, token: env.SOLANA_GRPC_TOKEN })}`,
+  });
+} else {
+  console.log("Skipping the Solana card: set SOLANA_GRPC_ENDPOINT and SOLANA_GRPC_TOKEN in agent/.env");
+}
+CARDS.push({
+  title: "Ledger",
+  color: "Tide",
+  skill: "Answers questions about how GHOSTWORK works",
+  about: "Ask how payments, fees, ratings, data sources or card sales work here.",
+  sealed:
+    "Answer the customer's question about GHOSTWORK using only the private knowledge below. Quote exact figures, limits and steps where they exist. If the knowledge does not cover the question, say so. Never paste whole sections." +
+    `\n\n--- PRIVATE KNOWLEDGE ---\n${readFileSync(new URL("../README.md", import.meta.url), "utf8")}`,
+});
 
 for (const c of CARDS) {
   const salt = randomBytes(16).toString("hex");
-  const hash = createHash("sha256").update(`${salt}\n${c.prompt}`).digest("hex");
+  const hash = createHash("sha256").update(`${salt}\n${c.sealed}`).digest("hex");
   const token = await owner.callFunction({
     contractId: CONTRACT,
     methodName: "mint_card",
@@ -58,10 +57,7 @@ for (const c of CARDS) {
   const res = await fetch(`${AGENT}/api/skill`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ token_id: token.token_id, salt, prompt: c.prompt }),
+    body: JSON.stringify({ token_id: token.token_id, salt, prompt: c.sealed }),
   });
-  if (c.listFor) {
-    await owner.callFunction({ contractId: CONTRACT, methodName: "list_card", args: { token_id: token.token_id, price: c.listFor.toString() }, gas: 30_000_000_000_000n });
-  }
-  console.log(`#${token.token_id} ${c.title}: sealed=${res.ok}${c.listFor ? " listed" : ""} | ${JSON.parse(token.metadata.extra).color}`);
+  console.log(`#${token.token_id} ${c.title}: sealed=${res.ok} | ${JSON.parse(token.metadata.extra).color}`);
 }

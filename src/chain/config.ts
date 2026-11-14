@@ -1,6 +1,6 @@
 // Deployment settings. Override in .env.local to point at your own deployment.
 export const NETWORK = "testnet" as const;
-export const CONTRACT_ID: string = import.meta.env.VITE_CONTRACT_ID ?? "ghostwork-05bb.testnet";
+export const CONTRACT_ID: string = import.meta.env.VITE_CONTRACT_ID ?? "ghostwork-7794.testnet";
 /** The TEE agent that holds sealed skills and does the jobs. */
 export const AGENT_URL: string = (import.meta.env.VITE_AGENT_URL ?? "http://localhost:3000").replace(/\/$/, "");
 /** Where this site is hosted, for the QR codes. Defaults to wherever it is being served from. */

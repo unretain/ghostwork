@@ -3,7 +3,7 @@ import { Hono } from "hono";
 import { serve } from "@hono/node-server";
 import { cors } from "hono/cors";
 import { ShadeClient } from "@neardefi/shade-agent-js";
-import { counters, HttpError, runJob, sealSkill } from "./jobs";
+import { counters, HttpError, runJob, sealSkill, view } from "./jobs";
 import { llmInfo } from "./llm";
 import { skillHashes } from "./store";
 
@@ -69,7 +69,6 @@ type ChainCard = {
   about: string;
   price: string;
   jobs_done: string;
-  rejected: string;
   rating_sum: string;
   rating_count: string;
   prompt_hash: string | null;
@@ -84,20 +83,27 @@ const publicCard = (c: ChainCard) => ({
   what_to_send: c.about,
   price_near: yoctoToNear(c.price),
   price_yocto: c.price,
-  jobs_accepted: Number(c.jobs_done),
-  answers_rejected: Number(c.rejected),
+  jobs_done: Number(c.jobs_done),
   rating: Number(c.rating_count) ? Number(c.rating_sum) / Number(c.rating_count) : null,
   ratings: Number(c.rating_count),
   can_be_hired: !!c.prompt_hash,
   owner: c.owner_id,
 });
 app.get("/api/cards", async (c) => {
-  const cards = (await agent.view({ methodName: "get_cards", args: { from_index: "0", limit: 100 } })) as unknown as ChainCard[];
-  return c.json({ contract: agentContractId, cards: cards.map(publicCard) });
+  try {
+    const cards = (await view<ChainCard[]>(agent, "get_cards", { from_index: "0", limit: 100 })) ?? [];
+    return c.json({ contract: agentContractId, cards: cards.map(publicCard) });
+  } catch {
+    return c.json({ error: "Could not reach NEAR right now. Try again." }, 503);
+  }
 });
 app.get("/api/cards/:id", async (c) => {
-  const card = (await agent.view({ methodName: "get_card", args: { token_id: c.req.param("id") } })) as unknown as ChainCard | null;
-  return card ? c.json(publicCard(card)) : c.json({ error: "Card not found" }, 404);
+  try {
+    const card = await view<ChainCard>(agent, "get_card", { token_id: c.req.param("id") });
+    return card ? c.json(publicCard(card)) : c.json({ error: "Card not found" }, 404);
+  } catch {
+    return c.json({ error: "Could not reach NEAR right now. Try again." }, 503);
+  }
 });
 
 app.post("/api/skill", handle(sealSkill));

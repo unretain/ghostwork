@@ -74,7 +74,7 @@ step("onchain result");
 let card = await view("get_card", { token_id: tokenId });
 const job = await view("get_job", { job_id: jobId });
 console.log({ status: job.status, result_hash_matches: job.result_hash === createHash("sha256").update(answer.body.result ?? "").digest("hex"), worker: job.worker });
-console.log("held for review:", { balance: card.balance, jobs_done: card.jobs_done });
+console.log("card paid:", { balance: card.balance, jobs_done: card.jobs_done });
 
 step("customer rates, owner claims");
 await customer.callFunction({ contractId: CONTRACT, methodName: "rate_job", args: { job_id: jobId, stars: 5 }, gas: 30_000_000_000_000n });
@@ -90,7 +90,6 @@ await customer.callFunction({ contractId: CONTRACT, methodName: "buy_card", args
 const sold = await view("get_card", { token_id: tokenId });
 console.log({ new_owner: sold.owner_id, listed_price: sold.listed_price, record_kept: sold.jobs_done === "1" && sold.prompt_hash === card.prompt_hash });
 
-const accepted = await view("get_job", { job_id: jobId });
-const ok = job.status === "Delivered" && accepted.status === "Done" && card.jobs_done === "1" && card.balance === "0" && card.rating_count === "1" && sold.owner_id === guestId && sold.listed_price === null;
+const ok = job.status === "Done" && card.jobs_done === "1" && card.balance === "0" && card.rating_count === "1" && sold.owner_id === guestId && sold.listed_price === null;
 console.log(ok ? "\nE2E PASSED" : "\nE2E FAILED");
 process.exit(ok ? 0 : 1);

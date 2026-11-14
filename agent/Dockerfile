@@ -22,5 +22,6 @@ ENV SOURCE_DATE_EPOCH=${SOURCE_DATE_EPOCH}
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=builder /app/dist ./dist
+COPY proto/ ./proto/
 COPY package.json ./
 CMD ["npm", "start"]

@@ -1,11 +1,9 @@
 #!/usr/bin/env node
-// GHOSTWORK client for agents and scripts: find a card, pay it, get the answer,
-// then accept or reject it.
+// GHOSTWORK client for agents and scripts: find a card, pay it, get the answer, rate it.
 //
 //   node scripts/hire.mjs list
 //   node scripts/hire.mjs hire <card-id> "<request>"
-//   node scripts/hire.mjs accept <job-id> [stars 1-5]
-//   node scripts/hire.mjs reject <job-id>          (within 5 minutes: 90% back)
+//   node scripts/hire.mjs rate <job-id> <stars 1-5>
 //
 // Needs a NEAR testnet account with a little NEAR:
 //   NEAR_ACCOUNT_ID=you.testnet  NEAR_PRIVATE_KEY=ed25519:...
@@ -66,20 +64,15 @@ try {
       card: card.name,
       paid_near: card.price_near,
       answer: body.result,
-      next: `Accept with "accept ${jobId} <stars>" or, within 5 minutes, "reject ${jobId}" for 90% back. No action counts as accepted.`,
+      next: `Rate it with "rate ${jobId} <stars 1-5>". Answers are final.`,
     });
-  } else if (command === "accept") {
-    const [jobId, stars = "5"] = args;
-    if (!jobId) fail("Usage: accept <job-id> [stars 1-5]");
+  } else if (command === "rate") {
+    const [jobId, stars] = args;
+    if (!jobId || !stars) fail("Usage: rate <job-id> <stars 1-5>");
     await account().callFunction({ contractId: CONTRACT, methodName: "rate_job", args: { job_id: jobId, stars: Number(stars) }, gas: GAS });
-    out({ job_id: jobId, accepted: true, stars: Number(stars) });
-  } else if (command === "reject") {
-    const [jobId] = args;
-    if (!jobId) fail("Usage: reject <job-id>");
-    await account().callFunction({ contractId: CONTRACT, methodName: "reject_job", args: { job_id: jobId }, gas: GAS });
-    out({ job_id: jobId, rejected: true, refunded: "90% of the payment" });
+    out({ job_id: jobId, rated: Number(stars) });
   } else {
-    fail("Commands: list | hire <card-id> \"<request>\" | accept <job-id> [stars] | reject <job-id>");
+    fail("Commands: list | hire <card-id> \"<request>\" | rate <job-id> <stars>");
   }
 } catch (e) {
   const text = String(e?.message ?? e);

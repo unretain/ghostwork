@@ -6,7 +6,7 @@ export type AgentStatus = {
   accountId: string;
   contractId: string;
   registered: boolean;
-  llm: { mode: "live" | "mock" | "off"; model: string };
+  llm: { mode: "live" | "off"; model: string };
   /** token id -> hash of the instructions the agent currently holds */
   skills: Record<string, string>;
   jobsCompleted: number;

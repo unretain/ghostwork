@@ -19,8 +19,6 @@ pub const MIN_PRICE: u128 = 50_000_000_000_000_000_000_000; // 0.05 NEAR
 pub const OPERATOR_BPS: u128 = 1_000;
 /// Share kept by the contract (covers the storage of job receipts).
 pub const PROTOCOL_BPS: u128 = 500;
-/// After an answer is delivered the customer has this long to reject it.
-pub const REVIEW_WINDOW_MS: u64 = 5 * 60 * 1000;
 /// A customer can take their money back if a job is still open after this long.
 pub const REFUND_AFTER_MS: u64 = 10 * 60 * 1000;
 
@@ -32,14 +30,10 @@ const MAX_ABOUT: usize = 240;
 #[near(serializers = [borsh, json])]
 #[derive(Clone, Debug, PartialEq)]
 pub enum JobStatus {
-    /// Paid, waiting for the agent.
+    /// Paid, waiting for the agent. Refundable if it is never answered.
     Open,
-    /// Answer delivered; the customer can still reject it.
-    Delivered,
-    /// Accepted (or the review window passed): the card has been paid.
+    /// Answered: the card has been paid.
     Done,
-    /// Rejected by the customer and refunded.
-    Rejected,
 }
 
 #[near(serializers = [borsh])]
@@ -56,8 +50,6 @@ pub struct Card {
     /// Lifetime earnings (after fees).
     pub earned: u128,
     pub jobs_done: u64,
-    /// Answers customers rejected and were refunded for.
-    pub rejected: u64,
     pub rating_sum: u64,
     pub rating_count: u64,
     pub recent_jobs: Vec<u64>,
@@ -111,7 +103,6 @@ pub struct CardView {
     pub balance: U128,
     pub earned: U128,
     pub jobs_done: U64,
-    pub rejected: U64,
     pub rating_sum: U64,
     pub rating_count: U64,
     pub path: String,
@@ -133,7 +124,6 @@ pub struct Stats {
     pub operator_bps: u32,
     pub protocol_bps: u32,
     pub refund_after_ms: U64,
-    pub review_window_ms: U64,
 }
 
 pub fn token_path(token_id: &str) -> String {
@@ -210,30 +200,6 @@ impl Contract {
         }
     }
 
-    /// Release a delivered job from escrow to its card. Does nothing for any other status.
-    fn settle_if_delivered(&mut self, job_id: u64) {
-        let Some(job) = self.jobs.get_mut(&job_id) else {
-            return;
-        };
-        if job.status != JobStatus::Delivered {
-            return;
-        }
-        job.status = JobStatus::Done;
-        let paid = job.paid;
-        let token_id = job.token_id.clone();
-        let net = paid - paid * OPERATOR_BPS / 10_000 - paid * PROTOCOL_BPS / 10_000;
-        let card = self.cards.get_mut(&token_id).unwrap();
-        card.balance += net;
-        card.earned += net;
-        card.jobs_done += 1;
-        self.jobs_completed += 1;
-        self.volume += paid;
-        emit(
-            "job_settled",
-            serde_json::json!({ "job_id": job_id.to_string(), "token_id": token_id, "earned": net.to_string() }),
-        );
-    }
-
     fn agent_is_valid(&self, account_id: &AccountId) -> bool {
         self.agents
             .get(account_id)
@@ -266,7 +232,6 @@ impl Contract {
             balance: U128(card.balance),
             earned: U128(card.earned),
             jobs_done: U64(card.jobs_done),
-            rejected: U64(card.rejected),
             rating_sum: U64(card.rating_sum),
             rating_count: U64(card.rating_count),
             signatures: U64(card.signatures),
@@ -335,7 +300,6 @@ impl Contract {
                 balance: 0,
                 earned: 0,
                 jobs_done: 0,
-                rejected: 0,
                 rating_sum: 0,
                 rating_count: 0,
                 recent_jobs: Vec::new(),
@@ -415,11 +379,9 @@ impl Contract {
         let job_id = self.next_job_id;
         self.next_job_id += 1;
         card.recent_jobs.push(job_id);
-        let evicted = if card.recent_jobs.len() > MAX_RECENT_JOBS {
-            Some(card.recent_jobs.remove(0))
-        } else {
-            None
-        };
+        if card.recent_jobs.len() > MAX_RECENT_JOBS {
+            card.recent_jobs.remove(0);
+        }
         let customer = env::predecessor_account_id();
         emit(
             "job_opened",
@@ -440,15 +402,12 @@ impl Contract {
                 worker: None,
             },
         );
-        // a delivered job falling off the list is settled so it can never be stranded
-        if let Some(old) = evicted {
-            self.settle_if_delivered(old);
-        }
         U64(job_id)
     }
 
-    /// Called by a registered, attested agent once it has the answer. The agent is paid
-    /// for the compute; the rest stays in escrow while the customer reviews the answer.
+    /// Called by a registered, attested agent once it has the answer. Releases the
+    /// escrow: the card earns, the agent is paid for the compute. Answered jobs are
+    /// final; the customer's rating is the record of how good the answer was.
     pub fn complete_job(&mut self, job_id: U64, result_hash: String) {
         require_hash(&result_hash);
         let worker = env::predecessor_account_id();
@@ -461,65 +420,33 @@ impl Contract {
             .get_mut(&job_id.0)
             .unwrap_or_else(|| env::panic_str("Job not found"));
         require!(job.status == JobStatus::Open, "Job is not open");
-        job.status = JobStatus::Delivered;
+        job.status = JobStatus::Done;
         job.result_hash = Some(result_hash);
         job.completed_ms = Some(block_timestamp_ms());
         job.worker = Some(worker.clone());
-        let operator_cut = job.paid * OPERATOR_BPS / 10_000;
+        let paid = job.paid;
+        let token_id = job.token_id.clone();
+
+        let operator_cut = paid * OPERATOR_BPS / 10_000;
+        let protocol_cut = paid * PROTOCOL_BPS / 10_000;
+        let net = paid - operator_cut - protocol_cut;
+
+        let card = self.cards.get_mut(&token_id).unwrap();
+        card.balance += net;
+        card.earned += net;
+        card.jobs_done += 1;
+        self.jobs_completed += 1;
+        self.volume += paid;
+
         emit(
-            "job_delivered",
-            serde_json::json!({ "job_id": job_id, "token_id": job.token_id, "worker": worker }),
+            "job_completed",
+            serde_json::json!({ "job_id": job_id, "token_id": token_id, "worker": worker, "earned": net.to_string() }),
         );
         if operator_cut > 0 {
             Promise::new(worker)
                 .transfer(NearToken::from_yoctonear(operator_cut))
                 .detach();
         }
-    }
-
-    /// The customer rejects a delivered answer within the review window and gets
-    /// everything back except the compute fee. The card earns nothing and takes a strike.
-    pub fn reject_job(&mut self, job_id: U64) -> Promise {
-        let customer = env::predecessor_account_id();
-        let job = self
-            .jobs
-            .get_mut(&job_id.0)
-            .unwrap_or_else(|| env::panic_str("Job not found"));
-        require!(job.customer == customer, "Only the customer can reject");
-        require!(
-            job.status == JobStatus::Delivered,
-            "Only a delivered, unaccepted answer can be rejected"
-        );
-        require!(
-            block_timestamp_ms() < job.completed_ms.unwrap_or(0) + REVIEW_WINDOW_MS,
-            "The review window has closed"
-        );
-        job.status = JobStatus::Rejected;
-        let refund = job.paid - job.paid * OPERATOR_BPS / 10_000;
-        let token_id = job.token_id.clone();
-        self.cards.get_mut(&token_id).unwrap().rejected += 1;
-        emit(
-            "job_rejected",
-            serde_json::json!({ "job_id": job_id, "token_id": token_id, "refund": refund.to_string() }),
-        );
-        Promise::new(customer).transfer(NearToken::from_yoctonear(refund))
-    }
-
-    /// Pay the card for a delivered job once its review window has passed. Anyone can call this.
-    pub fn settle_job(&mut self, job_id: U64) {
-        let job = self
-            .jobs
-            .get(&job_id.0)
-            .unwrap_or_else(|| env::panic_str("Job not found"));
-        require!(
-            job.status == JobStatus::Delivered,
-            "Job is not waiting to be settled"
-        );
-        require!(
-            block_timestamp_ms() >= job.completed_ms.unwrap_or(0) + REVIEW_WINDOW_MS,
-            "The customer can still reject this answer"
-        );
-        self.settle_if_delivered(job_id.0);
     }
 
     /// The customer takes their payment back if the job was never answered.
@@ -542,8 +469,7 @@ impl Contract {
         Promise::new(customer).transfer(NearToken::from_yoctonear(paid))
     }
 
-    /// The customer rates a job, 1 to 5 stars. Rating a delivered answer accepts it,
-    /// which pays the card straight away. One rating per job.
+    /// The customer rates an answered job, 1 to 5 stars. One rating per job.
     pub fn rate_job(&mut self, job_id: U64, stars: u8) {
         require!((1..=5).contains(&stars), "Stars must be 1-5");
         let customer = env::predecessor_account_id();
@@ -552,17 +478,13 @@ impl Contract {
             .get(&job_id.0)
             .unwrap_or_else(|| env::panic_str("Job not found"));
         require!(job.customer == customer, "Only the customer can rate");
-        require!(
-            job.status == JobStatus::Delivered || job.status == JobStatus::Done,
-            "Job is not completed"
-        );
+        require!(job.status == JobStatus::Done, "Job is not completed");
         require!(job.rating.is_none(), "Job already rated");
         let token_id = job.token_id.clone();
         require!(
             self.token_owner(&token_id) != customer,
             "Owners cannot rate their own card"
         );
-        self.settle_if_delivered(job_id.0);
         self.jobs.get_mut(&job_id.0).unwrap().rating = Some(stars);
         let card = self.cards.get_mut(&token_id).unwrap();
         card.rating_sum += stars as u64;
@@ -572,25 +494,6 @@ impl Contract {
     /// The card owner withdraws the card's unclaimed earnings.
     pub fn claim(&mut self, token_id: TokenId) -> Promise {
         self.require_token_owner(&token_id);
-        // first pay out any delivered jobs whose review window has passed
-        let now = block_timestamp_ms();
-        let due: Vec<u64> = self
-            .cards
-            .get(&token_id)
-            .unwrap()
-            .recent_jobs
-            .iter()
-            .copied()
-            .filter(|id| {
-                self.jobs.get(id).is_some_and(|j| {
-                    j.status == JobStatus::Delivered
-                        && now >= j.completed_ms.unwrap_or(0) + REVIEW_WINDOW_MS
-                })
-            })
-            .collect();
-        for id in due {
-            self.settle_if_delivered(id);
-        }
         let card = self.cards.get_mut(&token_id).unwrap();
         let amount = card.balance;
         require!(amount > 0, "Nothing to claim");
@@ -718,7 +621,6 @@ impl Contract {
             operator_bps: OPERATOR_BPS as u32,
             protocol_bps: PROTOCOL_BPS as u32,
             refund_after_ms: U64(REFUND_AFTER_MS),
-            review_window_ms: U64(REVIEW_WINDOW_MS),
         }
     }
 }

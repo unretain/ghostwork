@@ -789,3 +789,30 @@ a.gcard:focus-visible {
 .down {
   color: oklch(0.7 0.17 25);
 }
+
+/* ---- data source ---- */
+.check {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+}
+.check input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--cool-display);
+}
+.source {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 4px;
+  padding: 12px;
+  border-radius: 10px;
+  background: #0a0705;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08);
+  font-weight: 400;
+}
+.source .muted {
+  font-size: 12.5px;
+}

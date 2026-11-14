@@ -8,8 +8,8 @@ export type Job = {
   customer: string;
   request_hash: string;
   paid: string;
-  /** Open: paid, waiting. Delivered: answered, under review. Done: accepted, card paid. Rejected: refunded. */
-  status: "Open" | "Delivered" | "Done" | "Rejected";
+  /** Open: paid, waiting for the agent. Done: answered, card paid. */
+  status: "Open" | "Done";
   created_ms: string;
   completed_ms: string | null;
   result_hash: string | null;
@@ -41,8 +41,6 @@ export type Card = {
   balance: string;
   earned: string;
   jobs_done: string;
-  /** answers customers rejected and were refunded for */
-  rejected: string;
   rating_sum: string;
   rating_count: string;
   path: string;
@@ -64,7 +62,6 @@ export type Stats = {
   operator_bps: number;
   protocol_bps: number;
   refund_after_ms: string;
-  review_window_ms: string;
 };
 
 export type ContractInfo = { requires_tee: boolean; owner_id: string; mpc_contract_id: string };

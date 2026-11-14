@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { agentStatus, deliverJob, deliverSkill, type AgentStatus } from "../../chain/agent";
 import { cardUrl, CONTRACT_ID, MINT_GAS, NEAR_EXPLORER, SEPOLIA_EXPLORER } from "../../chain/config";
 import { getCard, getContractInfo, getStats, near, toYocto, type Card, type ContractInfo, type Job, type Stats } from "../../chain/near";
+import { useRates, worth } from "../../chain/intents";
 import { call, useSession } from "../../chain/wallet";
 import { commitment, loadAnswer, loadRequest, loadSkill, randomHex, saveAnswer, saveRequest, saveSkill } from "../../lib/vault";
 import { AgentCard, faceOf } from "./AgentCard";
@@ -88,7 +89,7 @@ function HirePanel({ card, account, onChange, stats }: Props & { stats: Stats | 
   });
 
   const refundAfter = Number(stats?.refund_after_ms ?? 600_000);
-  const reviewWindow = Number(stats?.review_window_ms ?? 300_000);
+  const priceWorth = worth(Number(near(card.price)), useRates());
 
   return (
     <section className="block hire">
@@ -107,14 +108,19 @@ function HirePanel({ card, account, onChange, stats }: Props & { stats: Stats | 
             disabled={phase !== "idle"}
             onChange={(e) => setRequest(e.target.value)}
           />
+          {priceWorth && (
+            <p className="muted hire__worth">
+              One job costs {near(card.price)} NEAR, {priceWorth} at live NEAR Intents rates.
+            </p>
+          )}
           {account ? (
             <div className="hire__go">
               <button className="kyd-button kyd-button--hero kyd-button--cool" disabled={phase !== "idle" || !!busy || request.trim().length < 2} onClick={hire}>
                 {phase === "paying" ? "Paying…" : phase === "working" ? `${card.title ?? "Agent"} is working…` : `Pay ${near(card.price)} NEAR and run`}
               </button>
               <span className="muted">
-                Your request goes to the agent privately; only its hash is stored onchain. Not happy with the answer? Reject it within{" "}
-                {Math.round(reviewWindow / 60000)} minutes and get 90% back.
+                Your request goes to the agent privately; only its hash is stored onchain. If no answer comes, you can refund after{" "}
+                {Math.round(refundAfter / 60000)} minutes. Answers are final, so check the card's ratings first.
               </span>
             </div>
           ) : (
@@ -139,36 +145,17 @@ function HirePanel({ card, account, onChange, stats }: Props & { stats: Stats | 
                     {near(j.paid)} NEAR · {ago(j.created_ms)}
                   </span>
                 </header>
-                {j.status === "Rejected" ? (
-                  <footer>
-                    <span className="muted">You rejected this answer and were refunded {near((BigInt(j.paid) * 9n) / 10n)} NEAR.</span>
-                  </footer>
-                ) : j.status !== "Open" ? (
+                {j.status === "Done" ? (
                   <>
                     <p className="answer__text">{answer ?? "Completed. The answer was delivered to the browser that paid for it."}</p>
                     <footer>
-                      {j.status === "Delivered" && Date.now() - Number(j.completed_ms) < reviewWindow && (
-                        <button
-                          className="mini-btn mini-btn--warn"
-                          disabled={!!busy}
-                          onClick={() =>
-                            run("reject", async () => {
-                              await call("reject_job", { job_id: j.job_id });
-                              toast("ok", "Rejected. 90% of your payment is back in your account.");
-                              await onChange();
-                            })
-                          }
-                        >
-                          Reject and get 90% back
-                        </button>
-                      )}
                       {j.rating ? (
                         <span className="muted">You rated it {"★".repeat(j.rating)}</span>
                       ) : isOwner ? (
                         <span className="muted">Owners can't rate their own card.</span>
                       ) : (
                         <>
-                          <span className="muted">{j.status === "Delivered" ? "Happy with it? Rate to accept:" : "Rate it:"}</span>
+                          <span className="muted">Rate this answer:</span>
                           <Stars
                             disabled={!!busy}
                             onRate={(n) =>
@@ -529,9 +516,8 @@ function Passport({ card, info, agent }: { card: Card; info: ContractInfo | null
         ),
       )}
       {row("Skill commitment", card.prompt_hash ? short(card.prompt_hash, 10) : "none")}
-      {row("Model", agent?.llm.mode === "live" ? agent.llm.model : agent?.llm.mode === "mock" ? "placeholder (test mode)" : "—")}
-      {row("Lifetime earnings", `${near(card.earned)} NEAR over ${card.jobs_done} accepted jobs`)}
-      {row("Rejected answers", card.rejected)}
+      {row("Model", agent?.llm.mode === "live" ? agent.llm.model : "—")}
+      {row("Lifetime earnings", `${near(card.earned)} NEAR over ${card.jobs_done} jobs`)}
     </section>
   );
 }
@@ -545,9 +531,7 @@ function Receipts({ jobs }: { jobs: Job[] }) {
         {jobs.map((j) => (
           <li key={j.job_id}>
             <span className="mono">#{j.job_id}</span>
-            <span className={j.status === "Done" ? "up" : j.status === "Rejected" ? "down" : "muted"}>
-              {j.status === "Delivered" ? "In review" : j.status}
-            </span>
+            <span className={j.status === "Done" ? "up" : "muted"}>{j.status}</span>
             <span>{near(j.paid)} NEAR</span>
             <span className="muted">{j.rating ? "★".repeat(j.rating) : ""}</span>
             <span className="mono muted" title="sha256 of the answer">

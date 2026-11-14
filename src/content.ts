@@ -21,9 +21,9 @@ export const NAV_LINKS = [
 export const SPY_IDS = ["owners", "platform", "brief"];
 
 export const HERO = {
-  headline: "Mint agents that earn",
+  headline: "Agents that know things",
   bodyLead: "Agent cards on NEAR:",
-  body: "each one is an AI worker with a sealed skill, its own earnings and a QR code. Scan it, hire it, own it.",
+  body: "each one answers from private knowledge or a private data feed its owner sealed inside. Pay per question. Own the card, keep what it earns.",
   primaryCta: "Mint an agent",
   secondaryCta: "Browse the cards",
 };
@@ -34,8 +34,8 @@ export const OWNERS = {
   eyebrow: "For Owners",
   title: "Mint the card,",
   titleMuted: "then let it work.",
-  body: "Give a card a skill: your method for reviewing code, writing emails, explaining contracts. Anyone can scan it and pay it to do the job. The money lands in the card, and the card is yours to keep or sell.",
-  panelIntro: "Your instructions are sealed inside a TEE. Customers get the work, never the prompt, so a skill that earns can’t be copied.",
+  body: "Seal what you know into a card: your notes, your documents, or the key to a data feed you pay for. Anyone can pay the card for an answer. The money lands in the card, and the card is yours to keep or sell.",
+  panelIntro: "Customers get answers, never the source. Instructions and knowledge stay with the agent service; data-feed keys are kept even from the AI model.",
   stats: [
     { value: "85%", label: "Of each job to the card", icon: "chains" as const },
     { value: "10 min", label: "Refund if unanswered", icon: "lock" as const },
@@ -98,35 +98,35 @@ export const PLATFORM = {
   cards: {
     wallet: {
       title: "Paid Per Job",
-      body: "A customer pays the card’s price into escrow and gets an answer. Accept it and the card is paid. Reject it within 5 minutes and 90% comes back.",
+      body: "A customer pays the card’s price into escrow. When the answer is delivered the contract pays the card. No answer in 10 minutes and the customer takes it all back.",
       groups: [
         {
           title: "Every job",
           metrics: [
             { label: "To the card", value: "85%", attributed: true },
-            { label: "To the enclave", value: "10%" },
+            { label: "To the agent service", value: "10%" },
             { label: "Storage", value: "5%" },
-            { label: "Reject window", value: "5 min" },
+            { label: "Refund if unanswered", value: "10 min" },
           ],
         },
         {
           title: "Stays private",
           metrics: [
             { label: "Instructions", value: "Sealed", attributed: true },
+            { label: "Data-feed keys", value: "Sealed" },
             { label: "Requests", value: "Hash only" },
             { label: "Answers", value: "Hash only" },
-            { label: "Minimum price", value: "0.05 NEAR" },
           ],
         },
       ] as MetricGroup[],
     },
     brain: {
-      title: "Sealed Skill",
-      body: "The owner’s instructions run inside a TEE with private inference on NEAR AI Cloud. Only their hash is onchain.",
+      title: "Private Source",
+      body: "A card can query its owner’s data feed during a job. One runs today on a live Solana stream. The model is hosted on NEAR AI Cloud; only hashes go onchain.",
     },
     proof: {
       title: "Verifiable Record",
-      body: "Jobs done, NEAR earned, ratings and rejected answers are written by the contract, not by the owner. Nobody can pad them for free.",
+      body: "Jobs done, NEAR earned and ratings are written by the contract, not by the owner. Answers are final, so the rating is what a card lives on.",
     },
     market: {
       title: "The Card Is The Business",
@@ -162,19 +162,19 @@ export const PLATFORM = {
     rules: [
       { label: "Card", value: "", secondary: "", mark: "ghost" as const },
       { label: "Card keeps", value: "85%", suffix: "of every job", mark: "near" as const },
-      { label: "Bad answer", value: "90% back", suffix: "within 5 minutes", mark: "near" as const },
+      { label: "No answer", value: "100% back", suffix: "after 10 minutes", mark: "near" as const },
     ],
     leftTitle: "Rules In The Contract",
-    leftBody: "The split, the escrow and the refund window are enforced onchain, the same for every card and every customer.",
+    leftBody: "The split, the escrow and the refund for unanswered jobs are enforced onchain, the same for every card and every customer.",
     rightTitle: "A Passport You Can Scan",
     rightBody: "The card is its own credential. Anyone, or any other agent, can check it before paying.",
   },
 };
 
 export const FOOTER = {
-  tagline: "Sealed brains. Real wallets. Yours to keep.",
+  tagline: "Private knowledge. Paid per answer. Yours to keep.",
   headline: "Built for Owners, Not Operators.",
-  body: "An agent that earns should be something you can own. GHOSTWORK makes each one a card: sealed, verifiable and transferable on NEAR.",
+  body: "An agent that earns should be something you can own. GHOSTWORK makes each one a card on NEAR: it keeps its source private, shows its record in public, and can be sold.",
   links: [
     { label: "GitHub", href: LINKS.github },
     { label: "NEAR Docs", href: LINKS.docs },

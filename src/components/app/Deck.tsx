@@ -8,27 +8,25 @@ import { MintIcon } from "../icons";
 import { AgentCard, faceOf, type CardFace } from "./AgentCard";
 import { ConnectButtons, SessionBar, toast, useBusy } from "./shared";
 
-const EXAMPLES = [
+// Starting points. Each is only worth paying for once the owner adds what they alone
+// have: a private data feed, or their own documents.
+const EXAMPLES: { label: string; title: string; skill: string; about: string; prompt: string; source?: boolean }[] = [
   {
-    title: "Wraith",
-    skill: "Reviews smart contracts",
-    about: "Paste a function. Get the bug before your auditor does.",
+    label: "Solana data analyst (needs your gRPC feed)",
+    title: "Yellowstone",
+    skill: "Analyses live Solana chain data",
+    about: "Ask what is happening on Solana right now: busiest programs, network speed, or what a wallet or program is doing.",
     prompt:
-      "You are a senior smart contract auditor. Review the code the customer pastes. List concrete vulnerabilities first (reentrancy, access control, unchecked math, oracle and signature issues), each with the exact line and a one-line fix. Then give a severity for each. No general advice, no praise.",
+      "You are an on-chain analyst for Solana mainnet. Answer the customer's question using live data from your tools. Be concrete: give the numbers you measured, name the programs, and say how long you watched. If they give an address, watch it. Keep answers under 250 words.",
+    source: true,
   },
   {
-    title: "Mercer",
-    skill: "Writes cold emails that get replies",
-    about: "Tell it who you're emailing and why. Get three short drafts.",
+    label: "Answers from your own documents",
+    title: "Ledger",
+    skill: "Answers questions about your product",
+    about: "Ask anything covered by the documentation sealed inside this card.",
     prompt:
-      "You write cold outreach emails. From the customer's description, write three different emails under 90 words each: one direct, one curious, one with a specific compliment. Plain language, one clear ask, no buzzwords, no exclamation marks. Add a subject line under 6 words for each.",
-  },
-  {
-    title: "Halcyon",
-    skill: "Explains legal text in plain English",
-    about: "Paste a clause or a contract section. Get what it means for you.",
-    prompt:
-      "You explain legal text to non-lawyers. For the pasted text: say in two sentences what it means, list what the reader is agreeing to, flag anything unusual or risky, and suggest one question to ask before signing. Say clearly that this is not legal advice.",
+      "Answer the customer's question using only the private knowledge below. Quote exact figures, limits and steps where they exist. If the knowledge does not cover the question, say so. Never paste whole sections.",
   },
 ];
 
@@ -42,6 +40,10 @@ function MintForm({ minPrice, onMinted }: { minPrice: string; onMinted: () => vo
   const [knowledge, setKnowledge] = useState("");
   const [price, setPrice] = useState("0.1");
   const [color, setColor] = useState<string>("Tide");
+  // optional private data source the agent may query; the credentials are sealed with the skill
+  const [useSource, setUseSource] = useState(false);
+  const [endpoint, setEndpoint] = useState("");
+  const [token, setToken] = useState("");
   const [art, setArt] = useState<string | null>(null);
   const { busy, run } = useBusy();
 
@@ -63,9 +65,11 @@ function MintForm({ minPrice, onMinted }: { minPrice: string; onMinted: () => vo
       ? "Say what it does"
       : prompt.trim().length < 20
         ? "Write its private instructions (at least 20 characters)"
-        : !priceYocto || BigInt(priceYocto) < BigInt(minPrice)
-          ? `Price must be at least ${near(minPrice)} NEAR`
-          : null;
+        : useSource && (!endpoint.trim() || !token.trim())
+          ? "Enter the data source's endpoint and token, or turn the data source off"
+          : !priceYocto || BigInt(priceYocto) < BigInt(minPrice)
+            ? `Price must be at least ${near(minPrice)} NEAR`
+            : null;
 
   const face: CardFace = {
     title: title.trim(),
@@ -81,8 +85,11 @@ function MintForm({ minPrice, onMinted }: { minPrice: string; onMinted: () => vo
 
   const mint = () =>
     run("mint", async () => {
-      // instructions and private knowledge are sealed together as one text
-      const text = knowledge.trim() ? `${prompt.trim()}\n\n--- PRIVATE KNOWLEDGE ---\n${knowledge.trim()}` : prompt.trim();
+      // instructions, private knowledge and the data source are sealed together as one text
+      let text = knowledge.trim() ? `${prompt.trim()}\n\n--- PRIVATE KNOWLEDGE ---\n${knowledge.trim()}` : prompt.trim();
+      if (useSource) {
+        text += `\n--- DATA SOURCE ---\n${JSON.stringify({ type: "solana-yellowstone-grpc", endpoint: endpoint.trim(), token: token.trim() })}`;
+      }
       const salt = randomHex();
       const hash = await commitment(salt, text);
       // kept in this browser until the agent has it, in case the wallet redirects away
@@ -107,7 +114,10 @@ function MintForm({ minPrice, onMinted }: { minPrice: string; onMinted: () => vo
     <section className="mint" id="mint">
       <div className="mint__form">
         <h2 className="panel-title">Mint an agent card</h2>
-        <p className="muted mint__lead">Give it a skill and a price. Anyone can open it and pay it to work. The card keeps 85% of every accepted job.</p>
+        <p className="muted mint__lead">
+          A card is worth paying for when it knows something customers can't get elsewhere. Give it your own data feed or documents, set a price,
+          and it earns 85% of every job.
+        </p>
         <div className="examples">
           <span className="muted">Start from an example:</span>
           {EXAMPLES.map((e) => (
@@ -119,9 +129,10 @@ function MintForm({ minPrice, onMinted }: { minPrice: string; onMinted: () => vo
                 setSkill(e.skill);
                 setAbout(e.about);
                 setPrompt(e.prompt);
+                setUseSource(!!e.source);
               }}
             >
-              {e.skill}
+              {e.label}
             </button>
           ))}
         </div>
@@ -164,6 +175,22 @@ function MintForm({ minPrice, onMinted }: { minPrice: string; onMinted: () => vo
             onChange={(e) => setKnowledge(e.target.value)}
           />
         </label>
+        <div className="lbl">
+          <label className="check">
+            <input type="checkbox" checked={useSource} onChange={(e) => setUseSource(e.target.checked)} />
+            Give it a private data source <span className="muted">(a live feed only you have access to)</span>
+          </label>
+          {useSource && (
+            <div className="source">
+              <span className="muted">
+                Solana Yellowstone gRPC. The agent can read the live chain through your feed to answer questions. Your token is sealed with the
+                skill and is never shown to customers or to the model.
+              </span>
+              <input className="field" placeholder="Endpoint, e.g. solana-yellowstone-grpc.publicnode.com:443" value={endpoint} onChange={(e) => setEndpoint(e.target.value)} aria-label="gRPC endpoint" />
+              <input className="field" type="password" placeholder="Access token" value={token} onChange={(e) => setToken(e.target.value)} aria-label="gRPC access token" autoComplete="off" />
+            </div>
+          )}
+        </div>
         <div className="lbl">
           Card colour
           <div className="swatches" role="radiogroup" aria-label="Card colour">
@@ -329,7 +356,7 @@ export function Deck() {
           </div>
           <div>
             <b>{stats?.jobs_completed ?? "…"}</b>
-            <span>Jobs accepted</span>
+            <span>Jobs done</span>
           </div>
           <div>
             <b>{stats ? near(stats.volume, 2) : "…"}</b>
@@ -338,9 +365,9 @@ export function Deck() {
           <div>
             <b className="statline__agent">
               <span className={`dot ${agent ? (agent.llm.mode === "live" ? "dot--ok" : "dot--warn") : "dot--off"}`} />
-              {agent === undefined ? "…" : agent ? (agent.llm.mode === "live" ? "Online" : agent.llm.mode === "mock" ? "Test mode" : "No model") : "Offline"}
+              {agent === undefined ? "…" : agent ? (agent.llm.mode === "live" ? "Online" : "No model") : "Offline"}
             </b>
-            <span>{agent?.llm.mode === "live" ? agent.llm.model : agent?.llm.mode === "mock" ? "Agent answers with a placeholder" : "Agent"}</span>
+            <span>{agent?.llm.mode === "live" ? agent.llm.model : "Agent"}</span>
           </div>
         </div>
 
