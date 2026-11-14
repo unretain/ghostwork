@@ -10,7 +10,8 @@ import { ConnectButtons, SessionBar, toast, useBusy } from "./shared";
 
 // Starting points. Each is only worth paying for once the owner adds what they alone
 // have: a private data feed, or their own documents.
-const EXAMPLES: { label: string; title: string; skill: string; about: string; prompt: string; source?: boolean }[] = [
+type SourceKind = "none" | "api" | "solana" | "radius";
+const EXAMPLES: { label: string; title: string; skill: string; about: string; prompt: string; source?: SourceKind }[] = [
   {
     label: "Solana data analyst (needs your gRPC feed)",
     title: "Yellowstone",
@@ -18,13 +19,31 @@ const EXAMPLES: { label: string; title: string; skill: string; about: string; pr
     about: "Ask what is happening on Solana right now: busiest programs, network speed, or what a wallet or program is doing.",
     prompt:
       "You are an on-chain analyst for Solana mainnet. Answer the customer's question using live data from your tools. Be concrete: give the numbers you measured, name the programs, and say how long you watched. If they give an address, watch it. Keep answers under 250 words.",
-    source: true,
+    source: "solana",
+  },
+  {
+    label: "Answers from your API",
+    title: "Quill",
+    skill: "Answers questions from our live data",
+    about: "Ask about anything our data covers.",
+    prompt:
+      "Answer the customer's question using data from your tool. Look the data up before answering and give the exact figures it returns. If the data does not cover the question, say so.",
+    source: "api",
+  },
+  {
+    label: "Hires people for real-world tasks",
+    title: "Kestrel",
+    skill: "Hires a person nearby to do a real-world task",
+    about: "Say what you need seen or checked, and where.",
+    prompt:
+      "When the customer asks for something to be seen, checked or photographed at a place: look the place up, then post one task there. Write the task for the person doing it: a clear title, what to do, and exactly what the proof photo must show. Use a reward of 0.1 NEAR and a radius of 150 metres unless asked otherwise. Tell the customer the task id and the place. When asked about a task, look it up and report its status.",
+    source: "radius",
   },
   {
     label: "Answers from your own documents",
     title: "Ledger",
     skill: "Answers questions about your product",
-    about: "Ask anything covered by the documentation sealed inside this card.",
+    about: "Ask anything covered by our documentation.",
     prompt:
       "Answer the customer's question using only the private knowledge below. Quote exact figures, limits and steps where they exist. If the knowledge does not cover the question, say so. Never paste whole sections.",
   },
@@ -40,10 +59,15 @@ function MintForm({ minPrice, onMinted }: { minPrice: string; onMinted: () => vo
   const [knowledge, setKnowledge] = useState("");
   const [price, setPrice] = useState("0.1");
   const [color, setColor] = useState<string>("Tide");
-  // optional private data source the agent may query; the credentials are sealed with the skill
-  const [useSource, setUseSource] = useState(false);
-  // or: the card may hire people for real-world tasks, paying from its own treasury
-  const [useRadius, setUseRadius] = useState(false);
+  // what the agent can use while doing a job, beyond its instructions and pasted knowledge
+  const [kind, setKind] = useState<SourceKind>("none");
+  const useSource = kind === "solana";
+  const useRadius = kind === "radius";
+  const useApi = kind === "api";
+  const [apiUrl, setApiUrl] = useState("");
+  const [apiHeader, setApiHeader] = useState("Authorization");
+  const [apiSecret, setApiSecret] = useState("");
+  const [apiGuide, setApiGuide] = useState("");
   const [taskBudget, setTaskBudget] = useState("0.2");
   const [endpoint, setEndpoint] = useState("");
   const [token, setToken] = useState("");
@@ -69,7 +93,9 @@ function MintForm({ minPrice, onMinted }: { minPrice: string; onMinted: () => vo
       : prompt.trim().length < 20
         ? "Write its private instructions (at least 20 characters)"
         : useSource && (!endpoint.trim() || !token.trim())
-          ? "Enter the data source's endpoint and token, or turn the data source off"
+          ? "Enter the feed's endpoint and token"
+          : useApi && (!/^https:\/\/.+/i.test(apiUrl.trim()) || !apiHeader.trim() || !apiSecret.trim() || apiGuide.trim().length < 10)
+            ? "Enter the API's https address, its header and key, and a short guide to its paths"
           : !priceYocto || BigInt(priceYocto) < BigInt(minPrice)
             ? `Price must be at least ${near(minPrice)} NEAR`
             : null;
@@ -92,6 +118,8 @@ function MintForm({ minPrice, onMinted }: { minPrice: string; onMinted: () => vo
       let text = knowledge.trim() ? `${prompt.trim()}\n\n--- PRIVATE KNOWLEDGE ---\n${knowledge.trim()}` : prompt.trim();
       if (useSource) {
         text += `\n--- DATA SOURCE ---\n${JSON.stringify({ type: "solana-yellowstone-grpc", endpoint: endpoint.trim(), token: token.trim() })}`;
+      } else if (useApi) {
+        text += `\n--- DATA SOURCE ---\n${JSON.stringify({ type: "http-api", base_url: apiUrl.trim(), header_name: apiHeader.trim(), header_value: apiSecret.trim(), guide: apiGuide.trim() })}`;
       } else if (useRadius) {
         text += `\n--- DATA SOURCE ---\n${JSON.stringify({ type: "radius-tasks" })}`;
       }
@@ -108,7 +136,7 @@ function MintForm({ minPrice, onMinted }: { minPrice: string; onMinted: () => vo
         await deliverSkill(result.token_id, salt, text).catch(() => {});
         const budget = useRadius ? toYocto(taskBudget) : null;
         if (budget) await call("set_task_budget", { token_id: result.token_id, max_reward: budget });
-        toast("ok", `${title.trim()} is minted and its skill is sealed`, txHash && `${NEAR_EXPLORER}/txns/${txHash}`);
+        toast("ok", `${title.trim()} is minted and ready to hire`, txHash && `${NEAR_EXPLORER}/txns/${txHash}`);
         onMinted();
         window.location.hash = `#/card/${result.token_id}`;
       } else {
@@ -122,8 +150,8 @@ function MintForm({ minPrice, onMinted }: { minPrice: string; onMinted: () => vo
       <div className="mint__form">
         <h2 className="panel-title">Mint an agent card</h2>
         <p className="muted mint__lead">
-          A card is worth paying for when it knows something customers can't get elsewhere. Give it your own data feed or documents, set a price,
-          and it earns 85% of every job.
+          People pay for a card that can do something a free chatbot can't. Give yours your own documents, an API or feed you have access to, or let
+          it hire people. It earns 85% of every job.
         </p>
         <div className="examples">
           <span className="muted">Start from an example:</span>
@@ -136,7 +164,7 @@ function MintForm({ minPrice, onMinted }: { minPrice: string; onMinted: () => vo
                 setSkill(e.skill);
                 setAbout(e.about);
                 setPrompt(e.prompt);
-                setUseSource(!!e.source);
+                setKind(e.source ?? "none");
               }}
             >
               {e.label}
@@ -161,7 +189,7 @@ function MintForm({ minPrice, onMinted }: { minPrice: string; onMinted: () => vo
           <input className="field" maxLength={240} placeholder="Paste a function. Get the bug before your auditor does." value={about} onChange={(e) => setAbout(e.target.value)} />
         </label>
         <label className="lbl">
-          Private instructions <span className="muted">(sealed: customers and future owners never see this)</span>
+          Private instructions <span className="muted">(only the agent service reads these)</span>
           <textarea
             className="field field--area"
             maxLength={8000}
@@ -172,7 +200,7 @@ function MintForm({ minPrice, onMinted }: { minPrice: string; onMinted: () => vo
           />
         </label>
         <label className="lbl">
-          Private knowledge <span className="muted">(optional, sealed: what it knows that customers can't get elsewhere)</span>
+          Private knowledge <span className="muted">(optional: your own documents, pasted as text)</span>
           <textarea
             className="field field--area"
             maxLength={50000}
@@ -183,29 +211,48 @@ function MintForm({ minPrice, onMinted }: { minPrice: string; onMinted: () => vo
           />
         </label>
         <div className="lbl">
-          <label className="check">
-            <input type="checkbox" checked={useSource} onChange={(e) => (setUseSource(e.target.checked), e.target.checked && setUseRadius(false))} />
-            Give it a private data source <span className="muted">(a live feed only you have access to)</span>
-          </label>
+          What else can it use?
+          <select className="field field--select" value={kind} onChange={(e) => setKind(e.target.value as SourceKind)} aria-label="What else the agent can use">
+            <option value="none">Nothing else: instructions and pasted knowledge only</option>
+            <option value="api">A web API I have a key for</option>
+            <option value="solana">A live Solana feed (Yellowstone gRPC)</option>
+            <option value="radius">It can hire people for real-world tasks (Radius)</option>
+          </select>
+          {useApi && (
+            <div className="source">
+              <span className="muted">
+                While doing a job the agent can read from your API. The agent service adds your key to each request; the AI model is given the
+                responses only. Read-only, https only.
+              </span>
+              <input className="field" placeholder="API address, e.g. https://api.example.com/v1" value={apiUrl} onChange={(e) => setApiUrl(e.target.value)} aria-label="API address" />
+              <input className="field" placeholder="Header name, e.g. Authorization or X-API-Key" value={apiHeader} onChange={(e) => setApiHeader(e.target.value)} aria-label="Header name" />
+              <input className="field" type="password" placeholder="Header value, e.g. Bearer your-key" value={apiSecret} onChange={(e) => setApiSecret(e.target.value)} aria-label="Header value" autoComplete="off" />
+              <textarea
+                className="field field--area"
+                rows={3}
+                maxLength={3000}
+                placeholder={"What the API offers, in your own words. For example:\nGET /prices/latest returns today's price for every product\nGET /orders?status=open returns the open orders"}
+                value={apiGuide}
+                onChange={(e) => setApiGuide(e.target.value)}
+                aria-label="Guide to the API"
+              />
+            </div>
+          )}
           {useSource && (
             <div className="source">
               <span className="muted">
-                Solana Yellowstone gRPC. The agent can read the live chain through your feed to answer questions. Your token is sealed with the
-                skill and is never shown to customers or to the model.
+                The agent can watch the live Solana chain through your feed. The agent service connects with your token; the AI model is given the
+                results only.
               </span>
               <input className="field" placeholder="Endpoint, e.g. solana-yellowstone-grpc.publicnode.com:443" value={endpoint} onChange={(e) => setEndpoint(e.target.value)} aria-label="gRPC endpoint" />
               <input className="field" type="password" placeholder="Access token" value={token} onChange={(e) => setToken(e.target.value)} aria-label="gRPC access token" autoComplete="off" />
             </div>
           )}
-          <label className="check">
-            <input type="checkbox" checked={useRadius} onChange={(e) => (setUseRadius(e.target.checked), e.target.checked && setUseSource(false))} />
-            Let it hire people <span className="muted">(Radius: it can post paid real-world tasks)</span>
-          </label>
           {useRadius && (
             <div className="source">
               <span className="muted">
-                During a job the agent can post a task for a person near a place. The reward comes out of this card's own treasury, never more than the
-                limit below per task. Add NEAR to the treasury from the card's page after minting.
+                During a job the agent can post a task for a person near a place. The reward comes out of this card's own balance, up to the limit
+                below for each task. After minting, add some NEAR to the card from its page so it can pay for its first tasks.
               </span>
               <span className="price-input">
                 <input className="field field--sm" inputMode="decimal" value={taskBudget} onChange={(e) => setTaskBudget(e.target.value)} aria-label="Most it may pay per task" />
@@ -247,7 +294,7 @@ function MintForm({ minPrice, onMinted }: { minPrice: string; onMinted: () => vo
               <MintIcon />
             </span>
           </button>
-          <span className="muted">{problem ?? "Costs about 0.03 NEAR of storage. Testnet only."}</span>
+          <span className="muted">{problem ?? "Costs about 0.03 NEAR of storage."}</span>
         </div>
       </div>
       <div className="mint__preview">
@@ -369,6 +416,9 @@ export function Deck() {
               Agent Cards
             </h1>
             <div className="deck-links">
+              <a className="kyd-button kyd-button--compact kyd-button--frame" href="#/docs">
+                Docs
+              </a>
               <a className="kyd-button kyd-button--compact kyd-button--frame" href="#/tasks">
                 Radius: tasks for people{stats && Number(stats.tasks) > 0 ? ` (${stats.tasks})` : ""}
               </a>
@@ -403,7 +453,7 @@ export function Deck() {
           <section className="welcome">
             <h2 className="panel-title">Mint an agent. Put it to work.</h2>
             <p className="muted">
-              Every card is an AI agent with a sealed skill and its own earnings. {NETWORK === "testnet" ? "Start as a guest to get a free testnet account in one click, no wallet needed." : "Connect a NEAR wallet to start."}
+              Every card is an AI agent with its own skill and its own earnings. {NETWORK === "testnet" ? "Start as a guest to get a free testnet account in one click, no wallet needed." : "Connect a NEAR wallet to start."}
             </p>
             <ConnectButtons />
           </section>

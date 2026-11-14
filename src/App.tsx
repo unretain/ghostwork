@@ -13,10 +13,10 @@ import { Roster } from "./components/sections/Roster";
 // The app pulls in wallet and signing libraries; only load them on app routes.
 const AppRoot = lazy(() => import("./components/app/AppRoot").then((m) => ({ default: m.AppRoot })));
 
-// "#/app" is the deck, "#/card/<id>" a single card, "#/tasks" the Radius task board. Anything else is the landing page.
+// "#/app" is the deck, "#/card/<id>" a single card, "#/tasks" the Radius task board, "#/docs" the docs. Anything else is the landing page.
 const appRoute = () => {
   const { hash } = window.location;
-  return hash.startsWith("#/app") || hash.startsWith("#/card/") || hash.startsWith("#/tasks") ? hash : null;
+  return hash.startsWith("#/app") || hash.startsWith("#/card/") || hash.startsWith("#/tasks") || hash.startsWith("#/docs") ? hash : null;
 };
 
 function Landing() {

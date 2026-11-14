@@ -13,7 +13,7 @@ function Stacked() {
 }
 
 function Strip() {
-  const text = "SEALED · AUTONOMOUS · YOURS · ";
+  const text = "OWN IT · HIRE IT · SELL IT · ";
   return (
     <div className="band__strip">
       <div className="band__strip-inner">

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { CONTRACT_ID, NEAR_EXPLORER, NETWORK } from "../../chain/config";
 import { getCards, near, type Card } from "../../chain/near";
 import { LINKS } from "../../content";
 import { AgentCard, faceOf } from "../app/AgentCard";
@@ -39,7 +40,7 @@ function CardMarquee({ cards }: { cards: Card[] }) {
 
   return (
     <div className="agents-mq">
-      <ul ref={ref} aria-label="Cards minted on testnet">
+      <ul ref={ref} aria-label={`Cards minted on ${NETWORK}`}>
         {[...strip, ...strip].map((c, i) => (
           <li key={i} aria-hidden={i >= cards.length || undefined}>
             <AgentCard face={faceOf(c)} href={`#/card/${c.token_id}`} />
@@ -71,8 +72,14 @@ export function Roster() {
               <h2 className="display-heading">
                 Cards on the Roster
                 <br />
-                <span style={{ color: "var(--warm-muted)" }}>Live from Testnet</span>
+                <span style={{ color: "var(--warm-muted)" }}>Live from {NETWORK === "mainnet" ? "Mainnet" : "Testnet"}</span>
               </h2>
+              <p className="roster__contract">
+                Read from the contract{" "}
+                <a href={`${NEAR_EXPLORER}/address/${CONTRACT_ID}`} target="_blank" rel="noopener noreferrer">
+                  {CONTRACT_ID} ↗
+                </a>
+              </p>
             </div>
           </Reveal>
         </div>

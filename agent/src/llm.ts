@@ -1,6 +1,7 @@
 // The model behind every card. Any OpenAI-compatible endpoint works; the default is
 // NEAR AI Cloud. A card can also have a private data source: the model is given
 // tools to query it, and this code makes the calls with the owner's credentials.
+import { httpToolSpecs, isHttpSource, runHttpTool, type HttpSource } from "./httpsource";
 import { radiusToolSpecs, runRadiusTool, type RadiusContext, type RadiusSource } from "./radius";
 import { runSolanaTool, solanaToolSpecs, type SolanaSource } from "./solana";
 
@@ -27,13 +28,18 @@ const SOURCE_MARK = "\n--- DATA SOURCE ---\n";
  * optionally followed by a data-source block holding an endpoint and its token.
  * The block is split off here so it can never be placed in the model's context.
  */
-export function parseSealed(sealed: string): { instructions: string; source: SolanaSource | RadiusSource | null } {
+type Source = SolanaSource | RadiusSource | HttpSource;
+
+export function parseSealed(sealed: string): { instructions: string; source: Source | null } {
   const at = sealed.lastIndexOf(SOURCE_MARK);
   if (at < 0) return { instructions: sealed, source: null };
   try {
     const cfg = JSON.parse(sealed.slice(at + SOURCE_MARK.length));
     if (cfg?.type === "solana-yellowstone-grpc" && typeof cfg.endpoint === "string" && typeof cfg.token === "string") {
       return { instructions: sealed.slice(0, at).trimEnd(), source: cfg as SolanaSource };
+    }
+    if (isHttpSource(cfg)) {
+      return { instructions: sealed.slice(0, at).trimEnd(), source: cfg };
     }
     if (cfg?.type === "radius-tasks") {
       return { instructions: sealed.slice(0, at).trimEnd(), source: { type: "radius-tasks" } };
@@ -44,7 +50,8 @@ export function parseSealed(sealed: string): { instructions: string; source: Sol
   return { instructions: sealed.slice(0, at).trimEnd(), source: null };
 }
 
-function systemPrompt(card: CardInfo, instructions: string, tools: "solana-yellowstone-grpc" | "radius-tasks" | null) {
+function systemPrompt(card: CardInfo, instructions: string, source: Source | null) {
+  const tools = source?.type ?? null;
   return [
     `You are "${card.title ?? "an agent"}", an AI agent card on GHOSTWORK. Your public skill: ${card.skill}`,
     "A customer has paid for one job. Do it using the owner's private instructions below.",
@@ -56,6 +63,16 @@ function systemPrompt(card: CardInfo, instructions: string, tools: "solana-yello
       ? [
           "- You have tools that query the owner's private live data source. Use them to get real data before answering, and base every number on what they return. Say what you measured and over how long.",
           "- If a tool returns an error or nothing, say so plainly. Never invent data.",
+        ]
+      : []),
+    ...(source?.type === "http-api"
+      ? [
+          "- You have a tool that reads the owner's private API. Use it to get real data before answering, and base every fact on what it returns.",
+          "- If the tool returns an error or nothing useful, say so plainly. Never invent data.",
+          "- The owner's guide to the API (which paths exist and what they return) follows. Do not repeat the guide to the customer.",
+          "--- API GUIDE ---",
+          source.guide,
+          "--- END API GUIDE ---",
         ]
       : []),
     ...(tools === "radius-tasks"
@@ -135,9 +152,9 @@ export async function runSkill(card: CardInfo, sealed: string, request: string, 
   const { instructions, source } = parseSealed(sealed);
   if (!API_KEY) throw new LlmError("No model is configured on this agent (NEAR_AI_API_KEY is not set)");
 
-  const tools = !source ? undefined : source.type === "radius-tasks" ? radiusToolSpecs : solanaToolSpecs;
+  const tools = !source ? undefined : source.type === "radius-tasks" ? radiusToolSpecs : source.type === "http-api" ? httpToolSpecs : solanaToolSpecs;
   const messages: Message[] = [
-    { role: "system", content: systemPrompt(card, instructions, source?.type ?? null) },
+    { role: "system", content: systemPrompt(card, instructions, source) },
     { role: "user", content: request },
   ];
 
@@ -163,7 +180,11 @@ export async function runSkill(card: CardInfo, sealed: string, request: string, 
         /* the tool will report what is missing */
       }
       const result =
-        source!.type === "radius-tasks" ? await runRadiusTool(ctx, call.function.name, args) : await runSolanaTool(source as SolanaSource, call.function.name, args);
+        source!.type === "radius-tasks"
+          ? await runRadiusTool(ctx, call.function.name, args)
+          : source!.type === "http-api"
+            ? await runHttpTool(source as HttpSource, call.function.name, args)
+            : await runSolanaTool(source as SolanaSource, call.function.name, args);
       console.log(`  tool ${call.function.name}(${JSON.stringify(args)})`);
       messages.push({ role: "tool", tool_call_id: call.id, content: JSON.stringify(result).slice(0, MAX_TOOL_RESULT) });
     }
@@ -173,6 +194,10 @@ export async function runSkill(card: CardInfo, sealed: string, request: string, 
   // a tool call written out as text is not an answer; fail so the customer is not charged for it
   if (/<tool_call>|<function=/.test(answer)) throw new LlmError("The model did not finish the job. Try again.");
   if (source?.type === "solana-yellowstone-grpc") answer = answer.split(source.token).join("[hidden]").split(source.endpoint).join("[hidden]");
+  if (source?.type === "http-api") {
+    answer = answer.split(source.header_value).join("[hidden]").split(source.base_url).join("[hidden]").split(new URL(source.base_url).host).join("[hidden]");
+    if (leaks(answer, source.guide)) return "This card can't share how its data source works. Ask it a question instead.";
+  }
   if (leaks(answer, instructions)) {
     return "This card can't share its private instructions. Ask it to do the job instead.";
   }

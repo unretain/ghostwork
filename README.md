@@ -20,7 +20,8 @@ Built for the NEAR hackathon, _Build Beyond Boundaries_. Track: **NFTs That Do S
 
 ## What you can do with it
 
-- **Make an agent.** Give it a name, say what it does, write its instructions, paste in any private knowledge, optionally connect a private data source, pick a colour and set a price per job. That mints a card.
+- **Make an agent.** Give it a name, say what it does, write its instructions, pick a colour and set a price per job. Then choose what it can use: documents you paste in, a web API you have a key for, a live Solana feed, or the ability to hire people. That mints a card.
+- **Read the docs in the site.** `#/docs` explains hiring, making agents, how the photo proof works, and links to the contract on a block explorer.
 - **Hire an agent.** Open a card, type what you want, pay. The answer comes back on the page. Cards with a live data source take 20 to 40 seconds.
 - **Do a task for an agent and get paid.** Open the Radius page, take a task near you, send a photo from the spot. See below.
 - **Post a task yourself.** Anyone, or any program, can post a task with a reward, not only the Radius card.
@@ -81,7 +82,12 @@ When you make a card you can tick "connect a private data source" and enter an e
 
 During a job the AI model is given a small set of tools ("check chain status", "measure network activity", "list the busiest programs", "watch this address"). The model decides which to call. The agent service makes the calls using the owner's token and passes back only the results. The token and the endpoint are never shown to the model, so the model cannot leak them, and they are also removed from any answer as a second check.
 
-One kind of source is supported today: a Solana Yellowstone gRPC feed. Adding another kind means writing one file like [`agent/src/solana.ts`](agent/src/solana.ts).
+Two kinds of source are supported:
+
+- **A web API you have a key for.** You enter its https address, the header that unlocks it (for example `Authorization: Bearer your-key`) and a short guide in your own words to which paths exist. The model reads the guide and asks for a path; the agent service makes the request and adds your header. Requests are read-only, can only go to paths under the address you gave, and cannot reach private networks. This covers most private data: a database behind an API, a paid data provider, an internal service. Checked against a real key-protected API: the card answered from live data and an attempt to get the key or the address out of it returned neither.
+- **A Solana Yellowstone gRPC feed**, with the four tools above.
+
+Anything else (a database connection, a websocket) means writing one more file like [`agent/src/httpsource.ts`](agent/src/httpsource.ts).
 
 ## Try it
 
@@ -136,7 +142,7 @@ The agent service also lists tasks as JSON at `GET /api/tasks`.
 | --- | --- |
 | [`contract/`](contract/) | The smart contract, in Rust. Cards, jobs, payments, ratings, sales, card art, and tasks for people (`tasks.rs`). 106 unit tests. |
 | [`agent/`](agent/) | The agent service, in TypeScript. Keeps each card's sealed text, runs jobs through an AI model, queries private data sources, posts tasks and checks their proofs (`radius.ts`), reports results to the contract. |
-| [`src/`](src/) | The website, in React. Landing page, card browser (`#/app`), card pages (`#/card/<number>`) and the task board (`#/tasks`). |
+| [`src/`](src/) | The website, in React. Landing page, card browser (`#/app`), card pages (`#/card/<number>`), the task board (`#/tasks`) and the docs (`#/docs`). |
 | [`scripts/`](scripts/) | `hire.mjs` and `radius.mjs` (clients for agents), `seed.mjs` (starter cards), `e2e.mjs` (full test against testnet), `deploy-mainnet.sh`. |
 
 ## Run your own
@@ -181,7 +187,7 @@ Create `.env.local` with `VITE_CONTRACT_ID=<your contract>` and run `npm run dev
 - **The agent service is not hosted.** It runs on the author's computer.
 - **You are trusting whoever runs the agent service.** It holds every card's sealed text and data-source keys in a file on its disk, and it sees every request. The contract can instead require the agent service to prove it is running inside tamper-proof hardware (a TEE) before it may deliver answers. That code comes from the Shade Agent template and we have not run it. Our deployment uses the simpler mode where the contract's owner approves the agent by hand.
 - **Paying from other chains has never moved real money.** The "Add funds" panel gets real deposit addresses and quotes from NEAR Intents on mainnet (checked: 1 NEAR cost about 0.045 SOL), but no payment has been sent through it, so the arrival step is untested. It tops up your NEAR account; it does not pay a card directly from another chain.
-- **One kind of data source.** Only Solana Yellowstone gRPC feeds. The feed is live only: the agent can measure what is happening now, not look up history.
+- **Two kinds of data source.** Web APIs (read-only GET requests with one secret header) and Solana Yellowstone gRPC feeds. APIs that need a login flow, POST requests or a database connection are not supported. The Solana feed is live only: it can measure what is happening now, not look up history. The web API source was tested directly against the agent code, not through a paid job.
 - **A bad answer still costs the customer.** Ratings warn later customers; they do not help the first one.
 - **Ratings can be bought.** An owner cannot rate their own card, but could hire it from a second account. Each fake job costs them 15% in fees.
 - **A card's instructions can leak.** The agent refuses to reveal them and filters word-for-word copies out of answers, but a model can sometimes be talked into paraphrasing them. Data-source tokens are not affected, because the model never sees them.

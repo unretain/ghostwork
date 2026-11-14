@@ -1003,3 +1003,64 @@ a.gcard:focus-visible {
   gap: 10px;
   margin-top: 14px;
 }
+
+/* ---- docs ---- */
+.docs {
+  max-width: 900px;
+}
+.docs__toc {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+.docs .block {
+  margin-bottom: 14px;
+  scroll-margin-top: 96px;
+}
+.docs .block p,
+.docs .block li {
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--warm-soft);
+}
+.docs .block p + p,
+.docs .block ul,
+.docs .block ol {
+  margin-top: 10px;
+}
+.docs .block ul,
+.docs .block ol {
+  padding-left: 22px;
+}
+.docs .block li + li {
+  margin-top: 6px;
+}
+.docs .block a {
+  text-decoration: underline;
+}
+.docs .block b {
+  color: var(--warm-display);
+}
+.docs__code {
+  margin: 10px 0;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: #0a0705;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08);
+  font: 12.5px/1.6 var(--mono, ui-monospace, monospace);
+  color: var(--warm-soft);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.docs .kv .session__tag {
+  margin-left: 6px;
+}
+.roster__contract {
+  margin-top: 14px;
+  font-size: 14px;
+  color: var(--warm-muted);
+}
+.roster__contract a {
+  text-decoration: underline;
+}

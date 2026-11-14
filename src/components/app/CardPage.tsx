@@ -95,7 +95,7 @@ function HirePanel({ card, account, onChange, stats }: Props & { stats: Stats | 
     <section className="block hire">
       <h2 className="panel-title">Hire {card.title ?? "this agent"}</h2>
       {!card.prompt_hash ? (
-        <p className="muted">This card has no skill sealed yet, so it can't take jobs.</p>
+        <p className="muted">This card has no skill yet, so it can't take jobs.</p>
       ) : (
         <>
           <p className="muted">{card.about || card.skill}</p>
@@ -119,8 +119,9 @@ function HirePanel({ card, account, onChange, stats }: Props & { stats: Stats | 
                 {phase === "paying" ? "Paying…" : phase === "working" ? `${card.title ?? "Agent"} is working…` : `Pay ${near(card.price)} NEAR and run`}
               </button>
               <span className="muted">
-                Your request goes to the agent privately; only its hash is stored onchain. If no answer comes, you can refund after{" "}
-                {Math.round(refundAfter / 60000)} minutes. Answers are final, so check the card's ratings first.
+                Your request is sent to the agent directly and the blockchain stores a hash of it. Answers are final, so look at the card's ratings
+                before paying. If the agent is down and nothing comes back in {Math.round(refundAfter / 60000)} minutes, you can take your payment back
+                here.
               </span>
             </div>
           ) : (
@@ -208,7 +209,7 @@ function BuyPanel({ card, account, onChange }: Props) {
         <h2 className="panel-title">This card is for sale</h2>
         <p className="muted">
           You get the NFT and everything on it: {near(card.balance)} NEAR of unclaimed earnings, its record of {card.jobs_done} jobs, its rating and its
-          sealed skill. The skill keeps working, but stays sealed, even from you.
+          skill. The agent keeps working for you, though you won't be able to read the instructions the previous owner wrote.
         </p>
       </div>
       {account ? (
@@ -327,7 +328,7 @@ function OwnerPanel({ card, onChange, agent }: Props & { agent: AgentStatus | nu
       await deliverSkill(card.token_id, salt, text);
       setPrompt("");
       setResealing(false);
-      toast("ok", "New skill sealed");
+      toast("ok", "New skill saved");
       await onChange();
     });
 
@@ -401,7 +402,7 @@ function OwnerPanel({ card, onChange, agent }: Props & { agent: AgentStatus | nu
       <div className="kv">
         <span>
           <span className={`dot ${held ? "dot--ok" : "dot--warn"}`} />
-          {held ? "The agent holds this card's sealed skill" : agent ? "The agent doesn't have this card's skill" : "Agent offline"}
+          {held ? "The agent has this card's skill" : agent ? "The agent doesn't have this card's skill" : "Agent offline"}
         </span>
         <span className="inline-form">
           {!held && local && agent && (
@@ -496,7 +497,7 @@ function OwnerPanel({ card, onChange, agent }: Props & { agent: AgentStatus | nu
 
       <div className="kv">
         <span>
-          Transfer card <span className="muted">(earnings, record and sealed skill go with it)</span>
+          Transfer card <span className="muted">(its earnings, record and skill go with it)</span>
         </span>
         <span className="inline-form">
           <input className="field" placeholder={NETWORK === "testnet" ? "receiver.testnet" : "receiver.near"} value={receiver} onChange={(e) => setReceiver(e.target.value)} />
@@ -538,7 +539,7 @@ function Passport({ card, info, agent }: { card: Card; info: ContractInfo | null
             ? "Checking the contract…"
             : info.requires_tee
               ? "Jobs can only be settled by an agent attested to run in an Intel TDX enclave"
-              : "Development mode: the agent is approved by the contract owner, not by TEE attestation"}
+              : "The agent service was approved by the contract's owner. Hardware attestation is switched off."}
         </span>
       </div>
       {row(

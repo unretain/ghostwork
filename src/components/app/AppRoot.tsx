@@ -1,6 +1,7 @@
 import "../../shims/buffer";
 import { CardPage } from "./CardPage";
 import { Deck } from "./Deck";
+import { Docs } from "./Docs";
 import { Tasks } from "./Tasks";
 import { Toaster } from "./shared";
 
@@ -9,7 +10,7 @@ export function AppRoot({ route }: { route: string }) {
   const card = route.match(/^#\/card\/(\d+)/);
   return (
     <>
-      {card ? <CardPage key={card[1]} tokenId={card[1]} /> : route.startsWith("#/tasks") ? <Tasks /> : <Deck />}
+      {card ? <CardPage key={card[1]} tokenId={card[1]} /> : route.startsWith("#/tasks") ? <Tasks /> : route.startsWith("#/docs") ? <Docs /> : <Deck />}
       <Toaster />
     </>
   );

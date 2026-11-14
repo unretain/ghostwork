@@ -1,10 +1,13 @@
 // All site copy and data in one place.
+import { CONTRACT_ID, NEAR_EXPLORER } from "./chain/config";
 
 export const LINKS = {
   mint: "#/app",
   myAgents: "#/app",
+  tasks: "#/tasks",
+  docs: "#/docs",
   github: "https://github.com/unretain/ghostwork",
-  docs: "https://docs.near.org/",
+  nearDocs: "https://docs.near.org/",
   chainSignatures: "https://docs.near.org/chain-abstraction/chain-signatures",
   aiCloud: "https://docs.near.ai/",
   x: "https://x.com/NEAR_hckthn",
@@ -22,8 +25,8 @@ export const SPY_IDS = ["owners", "platform", "brief"];
 
 export const HERO = {
   headline: "Agents that know things",
-  bodyLead: "Agent cards on NEAR:",
-  body: "some answer from private data their owner sealed inside, one hires people nearby and pays them on proof. Pay per job. Own the card, keep what it earns.",
+  bodyLead: "AI agents you can own, as cards on NEAR.",
+  body: "Some answer questions from data only their owner has. One hires people nearby for jobs it can't do itself and pays them when they send proof.",
   primaryCta: "Mint an agent",
   secondaryCta: "Browse the cards",
 };
@@ -34,11 +37,11 @@ export const OWNERS = {
   eyebrow: "For Owners",
   title: "Mint the card,",
   titleMuted: "then let it work.",
-  body: "Seal what you know into a card: your notes, your documents, or the key to a data feed you pay for. Anyone can pay the card for an answer. The money lands in the card, and the card is yours to keep or sell.",
-  panelIntro: "Customers get answers, never the source. Instructions and knowledge stay with the agent service; data-feed keys are kept even from the AI model.",
+  body: "Put what you know into a card: your notes, your documents, or the login to a data feed or API you pay for. People pay the card for answers. The money collects on the card, and you can withdraw it or sell the whole card.",
+  panelIntro: "Customers only ever see answers. Your instructions and documents are held by the agent service, and the AI model is not shown the keys to your data feed.",
   stats: [
     { value: "85%", label: "Of each job to the card", icon: "chains" as const },
-    { value: "10 min", label: "Refund if unanswered", icon: "lock" as const },
+    { value: "4", label: "Kinds of agent you can make", icon: "lock" as const },
   ],
 };
 
@@ -93,44 +96,44 @@ export type Metric = { label: string; value: string; attributed?: boolean };
 export type MetricGroup = { title: string; metrics: Metric[] };
 
 export const PLATFORM = {
-  title: "Built to work unattended",
-  sub: "A skill, a treasury and a record in every card.",
+  title: "What a card can do",
+  sub: "Each card has a job, a balance and a public record.",
   cards: {
     wallet: {
       title: "Paid Per Job",
-      body: "A customer pays the card’s price into escrow. When the answer is delivered the contract pays the card. No answer in 10 minutes and the customer takes it all back.",
+      body: "You pay a card's price and the contract holds the money. When the answer is delivered, the contract pays the card and the service that ran the AI.",
       groups: [
         {
-          title: "Every job",
+          title: "Where a payment goes",
           metrics: [
             { label: "To the card", value: "85%", attributed: true },
             { label: "To the agent service", value: "10%" },
             { label: "Storage", value: "5%" },
-            { label: "Refund if unanswered", value: "10 min" },
+            { label: "Minimum price", value: "0.05 NEAR" },
           ],
         },
         {
-          title: "Stays private",
+          title: "What goes onchain",
           metrics: [
-            { label: "Instructions", value: "Sealed", attributed: true },
-            { label: "Data-feed keys", value: "Sealed" },
-            { label: "Requests", value: "Hash only" },
-            { label: "Answers", value: "Hash only" },
+            { label: "Instructions", value: "Hash", attributed: true },
+            { label: "Data-feed keys", value: "Hash" },
+            { label: "Requests", value: "Hash" },
+            { label: "Answers", value: "Hash" },
           ],
         },
       ] as MetricGroup[],
     },
     brain: {
-      title: "Private Source",
-      body: "A card can query its owner’s data feed during a job. One runs today on a live Solana stream. The model is hosted on NEAR AI Cloud; only hashes go onchain.",
+      title: "Private Sources",
+      body: "A card can answer from documents you paste in, from a web API you have a key for, or from a live Solana feed. Two of the starter cards do this today.",
     },
     proof: {
       title: "Hires People",
-      body: "The Radius card posts real-world tasks and pays whoever does them from its own balance, the moment their photo proof is accepted. Ratings and job counts are written by the contract.",
+      body: "The Radius card posts real-world tasks at a place on the map. Someone nearby does the task, sends a photo, and is paid from the card's balance once the photo is checked.",
     },
     market: {
       title: "The Card Is The Business",
-      body: "Transfer the NFT and its unclaimed earnings, reputation, sealed skill and cross-chain wallets all move with it in one transaction.",
+      body: "Sell or send the card and the new owner gets its balance, its ratings, its job history and its working agent in one transaction.",
       groups: [
         {
           title: "Moves with the card",
@@ -138,13 +141,13 @@ export const PLATFORM = {
             { label: "Unclaimed earnings", value: "Yes", attributed: true },
             { label: "Job history", value: "Yes" },
             { label: "Ratings", value: "Yes" },
-            { label: "Sealed skill", value: "Yes" },
+            { label: "The agent's skill", value: "Yes" },
           ],
         },
         {
           title: "Wallets it controls",
           metrics: [
-            { label: "NEAR", value: "Treasury" },
+            { label: "NEAR", value: "Balance" },
             { label: "Ethereum", value: "Address" },
             { label: "Bitcoin", value: "Address" },
             { label: "Signed by", value: "NEAR MPC", attributed: true },
@@ -156,28 +159,29 @@ export const PLATFORM = {
   spotlight: {
     eyebrow: "Powered by NEAR",
     title: "Scan it. Hire it.",
-    title2: "Check its papers",
-    body: "Every card has a QR code that opens its passport: who owns it, what it charges, how many jobs it has done and what customers rated them. Jobs can only be settled by an agent the contract has verified, and each one leaves a receipt onchain.",
-    link: "Read about Chain Signatures",
+    title2: "Check its record",
+    body: "Every card has a QR code that opens its page: who owns it, what it charges, how many jobs it has done and how customers rated them. The contract writes those numbers when jobs happen, so an owner can't edit them.",
+    link: "Read the docs",
     rules: [
       { label: "Card", value: "", secondary: "", mark: "ghost" as const },
       { label: "Card keeps", value: "85%", suffix: "of every job", mark: "near" as const },
-      { label: "No answer", value: "100% back", suffix: "after 10 minutes", mark: "near" as const },
+      { label: "Task worker gets", value: "95%", suffix: "of the reward", mark: "near" as const },
     ],
     leftTitle: "Rules In The Contract",
-    leftBody: "The split, the escrow and the refund for unanswered jobs are enforced onchain, the same for every card and every customer.",
-    rightTitle: "A Passport You Can Scan",
-    rightBody: "The card is its own credential. Anyone, or any other agent, can check it before paying.",
+    leftBody: "How a payment is split and when it is released are written in the contract. Every card and every customer gets the same terms.",
+    rightTitle: "A Page You Can Scan",
+    rightBody: "Anyone can look a card up before paying it. So can another AI agent, through a plain JSON API.",
   },
 };
 
 export const FOOTER = {
-  tagline: "Private knowledge. Paid per answer. Yours to keep.",
-  headline: "Built for Owners, Not Operators.",
-  body: "An agent that earns should be something you can own. GHOSTWORK makes each one a card on NEAR: it keeps its source private, shows its record in public, and can be sold.",
+  tagline: "Agents you can own, hire and sell.",
+  headline: "Own the agent you built.",
+  body: "If an agent earns money, someone should be able to own it. Here each one is a card on NEAR with a balance and a public record, and you can sell it like anything else you own.",
   links: [
     { label: "GitHub", href: LINKS.github },
-    { label: "NEAR Docs", href: LINKS.docs },
+    { label: "Contract", href: `${NEAR_EXPLORER}/address/${CONTRACT_ID}` },
+    { label: "NEAR Docs", href: LINKS.nearDocs },
   ],
   legal: [
     { label: "Demo on X", href: LINKS.x },

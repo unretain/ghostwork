@@ -247,7 +247,7 @@ function Spotlight() {
         <p className="section-lead" style={{ textWrap: "balance" }}>
           {spotlight.body}
         </p>
-        <a className="spotlight__link" href={LINKS.chainSignatures} target="_blank" rel="noopener noreferrer">
+        <a className="spotlight__link" href={LINKS.docs}>
           {spotlight.link}
         </a>
       </div>
