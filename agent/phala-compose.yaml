@@ -3,7 +3,7 @@
 # The env file holds the values below and is never committed.
 services:
   agent-testnet:
-    image: unretain/ghostwork-agent:v3
+    image: unretain/ghostwork-agent:v4
     platform: linux/amd64
     environment:
       NODE_ENV: production
@@ -20,7 +20,7 @@ services:
       - testnet-data:/data
     restart: always
   agent-mainnet:
-    image: unretain/ghostwork-agent:v3
+    image: unretain/ghostwork-agent:v4
     platform: linux/amd64
     environment:
       NODE_ENV: production

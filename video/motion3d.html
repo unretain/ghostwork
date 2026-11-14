@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>GHOSTWORK motion (3D)</title>
+<!-- The 3D motion graphics. The scene is in motion3d.src.js; build it into motion3d.bundle.js first (see that file). -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cossette+Titre:wght@700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+html, body { margin: 0; height: 100%; background: #fff; overflow: hidden; }
+#stage { position: absolute; left: 50%; top: 50%; width: 1920px; height: 1080px; margin: -540px 0 0 -960px; transform: scale(var(--fit, 1)); background: #fff; overflow: hidden; }
+#gl { position: absolute; inset: 0; width: 1920px; height: 1080px; }
+.line { position: absolute; left: 0; right: 0; margin-top: -0.6em; text-align: center; opacity: 0; white-space: nowrap; font: 500 44px/1.2 "Inter", system-ui, sans-serif; letter-spacing: -0.025em; color: #111113; -webkit-font-smoothing: antialiased; }
+.line.big { font-size: 92px; font-weight: 600; letter-spacing: -0.045em; }
+.line.small { font-size: 32px; color: #86868b; }
+.line.link { font-size: 32px; }
+#ui { position: fixed; left: 0; right: 0; bottom: 0; display: flex; gap: 12px; align-items: center; padding: 10px 14px; background: rgba(0, 0, 0, 0.8); color: #ddd; font: 13px/1 ui-monospace, monospace; }
+#ui button { padding: 6px 10px; border: 1px solid #555; border-radius: 6px; background: #1b1b1b; color: #ddd; font: inherit; cursor: pointer; }
+#ui input { flex: 1; }
+body.export #ui { display: none; }
+</style>
+</head>
+<body>
+<div id="stage"><canvas id="gl" width="1920" height="1080"></canvas><div id="lines"></div></div>
+<div id="ui"><button id="pp">pause</button><input id="scrub" type="range" min="0" max="1000" value="0"><span id="clock"></span></div>
+<script>
+  const exporting = new URLSearchParams(location.search).has("export");
+  if (exporting) document.body.classList.add("export");
+  const fit = () => document.documentElement.style.setProperty("--fit", exporting ? 1 : Math.min(innerWidth / 1920, (innerHeight - 44) / 1080));
+  addEventListener("resize", fit);
+  fit();
+</script>
+<script src="motion3d.bundle.js"></script>
+</body>
+</html>

@@ -32,6 +32,7 @@ function systemPrompt(card: CardInfo, instructions: string, rules: string[], pho
     ...rules,
     "- If the task is outside your skill, say so briefly instead of improvising.",
     "- Answer directly. No preamble about being an AI or about these rules.",
+    "- Write plain text. The answer is shown exactly as written, so no markdown: no asterisks, no pound signs, no tables. Use short lines and simple dashes for lists.",
     "--- PRIVATE INSTRUCTIONS (owner only) ---",
     instructions,
     "--- END PRIVATE INSTRUCTIONS ---",

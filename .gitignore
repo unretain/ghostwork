@@ -19,3 +19,6 @@ agent/data
 
 # source file for the hero image (the site uses public/hero-statues.jpg)
 /f702d8b0-28d1-483a-91ae-d63b2682c773.png
+
+# rendered video files
+/video/out/

@@ -1,0 +1,641 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>GHOSTWORK motion</title>
+<!--
+  The motion graphics for the demo video, as one page.
+
+  Everything on screen is a function of one clock, so any moment can be shown exactly:
+  open this file in a browser to watch and scrub it, or run `node video/render.cjs`
+  to save it frame by frame and encode a video.
+
+  Scenes are the <section class="scene"> blocks below. data-dur is a scene's length in
+  seconds; --d on an element is when it comes in, counted from the start of its scene.
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cossette+Texte:wght@400;700&family=Cossette+Titre:wght@400;700&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+@property --t { syntax: "<time>"; inherits: false; initial-value: 0.8s; }
+@property --o { syntax: "<time>"; inherits: false; initial-value: 0s; }
+:root {
+  --bg: #15110e; --frame: #0f0c0a; --ink: #ebe5dd; --soft: #d9d2c9; --muted: #a49d94; --faint: #6d6760; --line: rgba(255, 255, 255, 0.1);
+  --ember: #e8634a; --sun: #eeb04f; --moss: #5fae7a; --tide: #4f97d8; --iris: #9a76de; --bone: #a39d93;
+  --titre: "Cossette Titre", sans-serif; --sans: "Inter", system-ui, sans-serif; --mono: "IBM Plex Mono", ui-monospace, monospace;
+  --expo: cubic-bezier(0.16, 1, 0.3, 1); --io: cubic-bezier(0.65, 0, 0.35, 1); --back: cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+html, body { margin: 0; height: 100%; background: #000; overflow: hidden; }
+#stage { position: absolute; left: 50%; top: 50%; width: 1920px; height: 1080px; margin: -540px 0 0 -960px; transform: scale(var(--fit, 1)); background: var(--bg); overflow: hidden; color: var(--ink); font-family: var(--sans); -webkit-font-smoothing: antialiased; }
+#stage *, #stage *::before { box-sizing: border-box; }
+.dots { position: absolute; inset: 0; background-image: radial-gradient(rgba(255, 255, 255, 0.075) 1.5px, transparent 1.7px); background-size: 30px 30px; -webkit-mask-image: radial-gradient(ellipse 75% 70% at 50% 50%, #000 20%, transparent 100%); }
+.scene { position: absolute; inset: 0; visibility: hidden; --accent: var(--iris); }
+.scene > *, .abs { position: absolute; }
+.wrap { position: absolute; inset: 0; }
+.wrap > * { position: absolute; }
+.full { position: absolute; inset: 0; width: 1920px; height: 1080px; overflow: visible; }
+#wipe { position: absolute; inset: 0; pointer-events: none; }
+
+/* ---- timing plumbing: every animated element waits for its scene (--s) plus its own delay ---- */
+.an { animation-duration: var(--t); animation-timing-function: var(--expo); animation-fill-mode: both; animation-delay: calc(var(--s) + var(--d, 0s) + var(--o)); }
+.loop { animation-timing-function: ease-in-out; animation-iteration-count: infinite; animation-direction: alternate; animation-fill-mode: both; animation-delay: var(--s); }
+.up { animation-name: kUp; } .fade { animation-name: kFade; animation-timing-function: linear; } .out { animation-name: kOut; animation-timing-function: linear; }
+.pop { animation-name: kPop; animation-timing-function: var(--back); } .left { animation-name: kLeft; } .grow { animation-name: kGrow; transform-origin: left center; }
+@keyframes kUp { from { opacity: 0; transform: translateY(44px); } to { opacity: 1; transform: none; } }
+@keyframes kFade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes kOut { from { opacity: 1; } to { opacity: 0; } }
+@keyframes kPop { from { opacity: 0; transform: scale(0.5); } to { opacity: 1; transform: none; } }
+@keyframes kLeft { from { opacity: 0; transform: translateX(-70px); } to { opacity: 1; transform: none; } }
+@keyframes kGrow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@keyframes kDraw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+@keyframes kCh { from { transform: translateY(112%); } to { transform: none; } }
+@keyframes kDrift { from { transform: translate(-70px, -30px) scale(1); } to { transform: translate(70px, 40px) scale(1.15); } }
+@keyframes kSpin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+/* ---- shared pieces ---- */
+.display { font-family: var(--titre); font-weight: 700; text-transform: uppercase; line-height: 0.9; letter-spacing: -0.005em; color: var(--ink); white-space: nowrap; }
+.w { display: inline-block; overflow: hidden; vertical-align: top; padding: 0.14em 0 0.05em; margin: -0.14em 0 -0.05em; }
+.ch { display: inline-block; animation-name: kCh; animation-duration: var(--t); animation-timing-function: var(--expo); animation-fill-mode: both; animation-delay: calc(var(--s) + var(--d, 0s) + var(--o) + var(--i) * var(--stag, 0.028s)); }
+.wd { display: inline-block; animation-name: kUp; animation-duration: 0.7s; animation-timing-function: var(--expo); animation-fill-mode: both; animation-delay: calc(var(--s) + var(--d, 0s) + var(--i) * 0.07s); }
+.accent { color: var(--accent); }
+.glow { width: 900px; height: 900px; border-radius: 50%; background: var(--accent); filter: blur(170px); opacity: 0.17; animation-name: kDrift; animation-duration: 7s; }
+.eyebrow { left: 120px; top: 92px; display: flex; gap: 18px; align-items: center; font: 500 22px/1 var(--mono); letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
+.eyebrow b { font-weight: 600; color: var(--accent); }
+.bug { right: 120px; top: 84px; display: flex; gap: 12px; align-items: center; font: 600 20px/1 var(--mono); letter-spacing: 0.2em; color: var(--muted); }
+.bug svg { width: 30px; height: 30px; }
+.mono { font-family: var(--mono); }
+.ln { fill: none; stroke: rgba(255, 255, 255, 0.22); stroke-width: 3; stroke-dasharray: 1; stroke-dashoffset: 1; }
+.ln.an { animation-name: kDraw; animation-timing-function: var(--io); }
+.chip { display: inline-flex; align-items: center; gap: 10px; padding: 12px 22px; border-radius: 999px; font: 600 22px/1 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; white-space: nowrap; color: var(--ink); background: #1d1915; box-shadow: 0 0 0 1px var(--line); }
+.chip.hot { background: var(--accent); color: #14100d; box-shadow: none; }
+.tile { border-radius: 22px; overflow: hidden; box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.12), 0 30px 60px -20px rgba(0, 0, 0, 0.8); }
+.tile svg { display: block; width: 100%; height: 100%; }
+.coin { display: grid; place-items: center; width: 92px; height: 92px; border-radius: 50%; background: var(--sun); color: #2a1c05; font: 700 26px/1 var(--sans); box-shadow: inset 0 -7px 0 rgba(0, 0, 0, 0.18), 0 12px 34px rgba(238, 176, 79, 0.35); }
+
+/* the card, as it looks on the site */
+.card { width: 460px; border-radius: 22px; overflow: hidden; background: #0f0c0a; color: var(--ink); box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.12), 0 50px 90px -30px rgba(0, 0, 0, 0.9); }
+.card__art { position: relative; aspect-ratio: 4 / 3; }
+.card__art svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.card__id { position: absolute; right: 12px; bottom: 12px; padding: 7px 10px; border-radius: 8px; background: rgba(0, 0, 0, 0.55); color: #fff; font: 500 16px/1 var(--mono); }
+.card__body { display: flex; flex-direction: column; gap: 8px; padding: 20px 22px 22px; }
+.card__name { font: 700 44px/1 var(--titre); text-transform: uppercase; }
+.card__skill { font: 600 21px/1.3 var(--sans); }
+.card__meta { display: flex; gap: 18px; font: 400 17px/1 var(--sans); color: var(--faint); }
+.card__foot { display: flex; align-items: flex-end; justify-content: space-between; margin-top: 14px; padding-top: 16px; border-top: 1px solid rgba(255, 255, 255, 0.08); }
+.card__price { font: 700 23px/1 var(--sans); color: var(--accent); }
+.card__price span { font-weight: 400; font-size: 17px; color: var(--faint); }
+.qr { width: 124px; height: 124px; padding: 7px; border-radius: 10px; background: #fff; }
+.qr svg { display: block; width: 100%; height: 100%; }
+
+/* ---- A: title ---- */
+#sA .glow { left: 510px; top: 40px; opacity: 0.22; }
+.a-word { left: 0; right: 0; top: 398px; text-align: center; font-size: 340px; }
+.a-rule { left: 410px; top: 742px; width: 1100px; height: 3px; background: var(--ink); opacity: 0.5; animation-name: kGrow; transform-origin: center; }
+.a-sub { left: 0; right: 0; top: 786px; text-align: center; font: 500 46px/1.2 var(--sans); color: var(--soft); }
+.a-foot { left: 120px; right: 120px; bottom: 64px; display: flex; justify-content: space-between; font: 500 20px/1 var(--mono); letter-spacing: 0.18em; color: var(--faint); }
+
+/* ---- B: the gap ---- */
+#sB .glow { left: 1150px; top: 260px; }
+.b-l1 { left: 120px; top: 196px; animation-name: kDim; animation-timing-function: linear; }
+.b-l1 .display { font-size: 190px; }
+@keyframes kDim { from { opacity: 1; } to { opacity: 0.26; } }
+.b-l2 { left: 120px; top: 598px; font-size: 150px; }
+.b-slot { left: 120px; top: 722px; width: 1700px; height: 176px; overflow: hidden; font-size: 150px; }
+.sw { position: absolute; left: 0; top: 22px; display: block; animation-name: kSwOut; animation-timing-function: cubic-bezier(0.4, 0, 1, 1); }
+.sw i { display: block; font-style: normal; color: var(--accent); animation-name: kSwIn; }
+@keyframes kSwIn { from { transform: translateY(115%); } to { transform: none; } }
+@keyframes kSwOut { from { transform: none; } to { transform: translateY(-125%); } }
+
+/* ---- C: the card ---- */
+#sC .glow { left: 40px; top: 120px; opacity: 0.2; }
+.c-persp { left: 250px; top: 196px; perspective: 1800px; }
+.c-flip { animation-name: kFlip; transform-style: preserve-3d; }
+@keyframes kFlip { from { opacity: 0; transform: rotateY(-105deg) translateX(-140px) scale(0.88); } 35% { opacity: 1; } to { opacity: 1; transform: none; } }
+.c-float { animation-name: kFloat; animation-duration: 4.5s; }
+@keyframes kFloat { from { transform: rotateY(-8deg) rotateX(2deg); } to { transform: rotateY(8deg) rotateX(-2deg); } }
+.c-call { left: 930px; width: 880px; }
+.c-call .num { position: absolute; left: -64px; top: 12px; font: 600 20px/1 var(--mono); letter-spacing: 0.1em; color: var(--accent); }
+.c-call .display { font-size: 96px; }
+.c-call p { margin: 8px 0 0; font: 400 31px/1.3 var(--sans); color: var(--muted); }
+.c-dot { fill: var(--accent); animation-name: kPop; transform-box: fill-box; transform-origin: center; }
+
+/* ---- D: a job ---- */
+#sD .glow { left: 520px; top: 200px; opacity: 0.12; }
+.d-head { left: 120px; top: 150px; font-size: 96px; display: flex; gap: 28px; }
+.d-node { display: grid; place-items: center; }
+.d-you { left: 190px; top: 390px; width: 180px; height: 180px; border-radius: 50%; background: #1d1915; box-shadow: 0 0 0 1px var(--line); }
+.d-contract { left: 860px; top: 380px; width: 200px; height: 200px; border-radius: 40px; background: #1d1915; box-shadow: 0 0 0 2px var(--accent); }
+.d-card { left: 1530px; top: 395px; width: 220px; height: 165px; }
+.d-lab { width: 420px; margin-left: -210px; text-align: center; font: 500 21px/1 var(--mono); letter-spacing: 0.14em; color: var(--muted); }
+.d-sub { width: 420px; margin-left: -210px; text-align: center; font: 500 24px/1 var(--mono); color: var(--accent); }
+.d-note { font: 400 22px/1 var(--mono); color: var(--muted); white-space: nowrap; }
+.d-shackle-a { animation-name: kLock; } .d-shackle-b { animation-name: kUnlock; }
+@keyframes kLock { from { transform: translateY(-7px); } to { transform: none; } }
+@keyframes kUnlock { from { transform: none; } to { transform: translateY(-7px); } }
+.d-coinA { left: 0; top: 0; animation-name: kCoinA; animation-timing-function: var(--io); }
+@keyframes kCoinA { from { opacity: 0; transform: translate(234px, 434px) scale(0.4); } 15% { opacity: 1; transform: translate(280px, 434px) scale(1); } 85% { opacity: 1; transform: translate(914px, 434px) scale(1); } to { opacity: 0; transform: translate(914px, 434px) scale(0.4); } }
+.d-coinB { left: 0; top: 0; animation-name: kCoinB; animation-timing-function: var(--io); }
+@keyframes kCoinB { from { opacity: 0; transform: translate(914px, 434px) scale(0.4); } 15% { opacity: 1; transform: translate(960px, 434px) scale(1); } 85% { opacity: 1; transform: translate(1594px, 434px) scale(1); } to { opacity: 0; transform: translate(1594px, 434px) scale(0.4); } }
+.d-msg { left: 0; top: 0; offset-rotate: 0deg; animation-name: kTravel; animation-timing-function: var(--io); }
+.d-req { offset-path: path("M280 384 C 480 236, 1440 236, 1640 384"); }
+.d-ans { offset-path: path("M1640 722 C 1440 850, 480 850, 280 664"); }
+@keyframes kTravel { from { opacity: 0; offset-distance: 0%; } 10% { opacity: 1; } 90% { opacity: 1; } to { opacity: 0; offset-distance: 100%; } }
+.d-ring { left: 1500px; top: 338px; width: 280px; height: 280px; border-radius: 50%; border: 3px dashed var(--iris); animation: kSpin 6s linear infinite both; animation-delay: var(--s); }
+.d-bar { left: 760px; top: 668px; width: 400px; height: 26px; display: flex; gap: 4px; }
+.d-bar i { display: block; height: 100%; border-radius: 6px; transform-origin: left center; }
+.d-legend { left: 360px; top: 712px; width: 1200px; white-space: nowrap; display: flex; justify-content: center; gap: 26px; font: 500 19px/1 var(--mono); color: var(--muted); }
+.d-legend b { font-weight: 600; }
+
+/* ---- E: what it can use ---- */
+#sE .glow { left: 510px; top: 250px; opacity: 0.14; }
+.e-head { left: 120px; top: 150px; font-size: 132px; }
+.e-core { left: 850px; top: 540px; width: 220px; height: 220px; }
+.e-chip { transform: translate(-50%, -50%); }
+.e-foot { left: 0; right: 0; top: 968px; text-align: center; font: 500 38px/1.2 var(--sans); color: var(--soft); }
+
+/* ---- F: Radius ---- */
+#sF .glow { left: 200px; top: 150px; opacity: 0.1; }
+.f-map { left: 120px; top: 190px; width: 980px; height: 800px; border-radius: 30px; background: #0f0c0a; box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.09); overflow: hidden; }
+.f-map > * { position: absolute; }
+.f-card { left: 36px; top: 36px; width: 176px; border-radius: 16px; overflow: hidden; background: #171310; box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.14); }
+.f-card svg { display: block; width: 100%; }
+.f-card span { display: block; padding: 10px 12px; font: 600 18px/1 var(--mono); letter-spacing: 0.14em; }
+.f-ring { left: 330px; top: 240px; width: 380px; height: 380px; border-radius: 50%; border: 3px dashed var(--accent); background: color-mix(in srgb, var(--accent) 9%, transparent); }
+.f-ringok { left: 330px; top: 240px; width: 380px; height: 380px; border-radius: 50%; border: 3px solid var(--accent); background: color-mix(in srgb, var(--accent) 16%, transparent); }
+.f-pulse { left: 330px; top: 240px; width: 380px; height: 380px; border-radius: 50%; border: 2px solid var(--accent); animation: kPulse 2s ease-out infinite both; animation-delay: var(--s); }
+@keyframes kPulse { from { transform: scale(1); opacity: 0.6; } to { transform: scale(1.32); opacity: 0; } }
+.f-m { left: 664px; top: 262px; font: 500 18px/1 var(--mono); color: var(--accent); }
+.f-pin { left: 520px; top: 430px; width: 60px; height: 78px; margin: -78px 0 0 -30px; animation-name: kDrop; animation-timing-function: linear; }
+@keyframes kDrop { from { opacity: 0; transform: translateY(-300px); } 55% { opacity: 1; transform: translateY(0); } 72% { transform: translateY(-26px); } 88% { transform: translateY(0); } 94% { transform: translateY(-7px); } to { opacity: 1; transform: none; } }
+.f-go { left: 0; top: 0; offset-rotate: 0deg; animation-timing-function: var(--io); }
+.f-task { offset-path: path("M124 100 C 300 60, 470 190, 520 388"); animation-name: kTravel; }
+.f-person { offset-path: path("M800 790 L800 660 L520 660 L520 494"); animation-name: kWalk; width: 52px; height: 52px; border-radius: 50%; background: #f6f1ea; box-shadow: 0 0 0 5px var(--accent), 0 10px 24px rgba(0, 0, 0, 0.6); display: grid; place-items: center; }
+@keyframes kWalk { from { opacity: 0; offset-distance: 0%; } 8% { opacity: 1; } to { opacity: 1; offset-distance: 100%; } }
+.f-coin { offset-path: path("M124 100 C 250 300, 430 420, 520 494"); animation-name: kTravel; width: 70px; height: 70px; font-size: 20px; }
+.f-flash { inset: 0; background: #fff; animation-name: kFlash; animation-timing-function: linear; }
+@keyframes kFlash { from { opacity: 0; } 14% { opacity: 0.9; } to { opacity: 0; } }
+.f-photo { left: 596px; top: 474px; transform: rotate(5deg); }
+.f-photo div { width: 204px; padding: 9px 9px 30px; border-radius: 8px; background: #f3efe8; box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6); }
+.f-photo svg { display: block; width: 100%; border-radius: 3px; }
+.f-paid { left: 580px; top: 286px; transform: rotate(-8deg); }
+.f-paid div { padding: 2px 26px 0; border: 7px solid var(--accent); border-radius: 16px; background: #0f0c0a; color: var(--accent); font: 700 124px/1 var(--titre); animation-name: kStamp; animation-timing-function: cubic-bezier(0.6, 0, 1, 0.6); }
+@keyframes kStamp { from { opacity: 0; transform: scale(2.6); } to { opacity: 1; transform: none; } }
+.f-head { left: 1160px; top: 186px; font-size: 92px; }
+.f-step { left: 1160px; width: 700px; display: flex; gap: 20px; align-items: flex-start; }
+.f-step .n { flex: none; display: grid; place-items: center; width: 46px; height: 46px; border-radius: 50%; border: 2px solid var(--accent); color: var(--accent); font: 600 20px/1 var(--mono); }
+.f-step h4 { margin: 5px 0 0; font: 600 34px/1.15 var(--sans); }
+.f-step p { margin: 10px 0 0; font: 400 20px/1.3 var(--mono); color: var(--muted); white-space: nowrap; }
+.chk { display: inline-flex; align-items: center; gap: 7px; margin: 12px 6px 0 0; padding: 9px 12px; border-radius: 999px; font: 500 16px/1 var(--mono); color: var(--accent); box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 55%, transparent); white-space: nowrap; }
+.chk svg { width: 16px; height: 16px; }
+.f-amount { left: 1226px; top: 918px; font-size: 118px; color: var(--accent); }
+
+/* ---- G: own it ---- */
+#sG .glow { left: 1000px; top: 60px; }
+.g-head { left: 120px; top: 168px; font-size: 176px; }
+.g-slot { top: 560px; width: 332px; height: 372px; border: 2px dashed rgba(255, 255, 255, 0.18); border-radius: 26px; }
+.g-lab { top: 516px; width: 332px; text-align: center; font: 500 22px/1 var(--mono); letter-spacing: 0.18em; color: var(--muted); }
+.g-card { left: 436px; top: 584px; width: 300px; z-index: 2; animation-name: kHandover; animation-timing-function: var(--io); }
+@keyframes kHandover { from { transform: none; } 50% { transform: translate(375px, -46px) rotate(4deg); } to { transform: translate(750px, 0); } }
+.g-card > div { padding: 12px 12px 14px; border-radius: 22px; background: #0f0c0a; box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.13), 0 34px 60px -22px rgba(0, 0, 0, 0.85); }
+.g-card .tile { width: 276px; height: 207px; border-radius: 14px; box-shadow: none; }
+.g-card b { display: block; margin-top: 14px; font: 700 34px/1 var(--titre); text-transform: uppercase; }
+.g-tags { display: flex; gap: 8px; margin-top: 12px; }
+.g-tags span { white-space: nowrap; padding: 8px 13px; border-radius: 999px; font: 500 17px/1 var(--mono); color: var(--accent); box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 55%, transparent); }
+.g-coin { left: 1290px; top: 700px; animation-name: kPayBack; animation-timing-function: var(--io); }
+@keyframes kPayBack { from { opacity: 0; transform: scale(0.4); } 12% { opacity: 1; transform: scale(1); } 55% { transform: translate(-375px, 150px) scale(1); } to { opacity: 1; transform: translate(-750px, 0) scale(1); } }
+.g-foot { left: 120px; top: 968px; font: 500 38px/1.2 var(--sans); color: var(--soft); }
+
+/* ---- H: close ---- */
+#sH .glow { left: 510px; top: 250px; opacity: 0.2; }
+.h-tiles { left: 0; right: 0; top: 96px; display: flex; justify-content: center; gap: 44px; }
+.h-tiles > div { position: relative; }
+.h-tiles .tile { width: 232px; height: 174px; }
+.h-tiles span { display: block; margin-top: 14px; text-align: center; font: 600 19px/1 var(--mono); letter-spacing: 0.16em; color: var(--muted); }
+.h-live { left: 0; right: 0; top: 372px; display: flex; justify-content: center; align-items: center; gap: 14px; font: 500 24px/1 var(--mono); letter-spacing: 0.18em; color: var(--muted); }
+.h-live i { width: 14px; height: 14px; border-radius: 50%; background: #58d68d; box-shadow: 0 0 18px #58d68d; }
+.h-addr { left: 0; right: 0; top: 420px; text-align: center; font: 500 62px/1 var(--mono); color: var(--ink); white-space: pre; }
+.h-go { left: 0; right: 0; top: 520px; text-align: center; font-size: 290px; }
+.h-link { left: 0; right: 0; top: 824px; display: flex; justify-content: center; align-items: center; gap: 40px; }
+.h-url { padding: 26px 44px; border-radius: 999px; background: var(--ink); color: #14100d; font: 600 50px/1 var(--sans); letter-spacing: -0.01em; }
+.h-link .qr { width: 158px; height: 158px; }
+.h-foot { left: 0; right: 0; bottom: 40px; text-align: center; font: 500 19px/1 var(--mono); letter-spacing: 0.18em; color: var(--faint); }
+
+/* ---- preview controls (not in the rendered video) ---- */
+#ui { position: fixed; left: 0; right: 0; bottom: 0; display: flex; gap: 12px; align-items: center; padding: 10px 14px; background: rgba(0, 0, 0, 0.82); color: #ddd; font: 13px/1 var(--mono); z-index: 10; }
+#ui button { padding: 6px 10px; border: 1px solid #444; border-radius: 6px; background: #1b1b1b; color: #ddd; font: inherit; cursor: pointer; }
+#ui button.on { border-color: #999; color: #fff; }
+#ui input { flex: 1; }
+body.export #ui { display: none; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div class="dots"></div>
+
+  <!-- A: title -->
+  <section class="scene" id="sA" data-dur="7.5" data-name="title" style="--accent: var(--iris)">
+    <div class="glow loop"></div>
+    <canvas id="ghostC" width="1920" height="1080" style="inset: 0"></canvas>
+    <div class="display a-word" data-split style="--d: 2.2s; --stag: 0.05s">GHOSTWORK</div>
+    <div class="a-rule an" style="--d: 3s; --t: 1.1s"></div>
+    <div class="a-sub" data-words style="--d: 3.3s">AI agents you can own, hire and sell.</div>
+    <div class="a-foot an fade" style="--d: 4.5s"><span>NEAR HACKATHON · BUILD BEYOND BOUNDARIES</span><span>NFTS THAT DO SOMETHING</span></div>
+  </section>
+
+  <!-- B: the gap -->
+  <section class="scene" id="sB" data-dur="8.5" data-name="gap" style="--accent: var(--ember)">
+    <div class="glow loop"></div>
+    <div class="eyebrow an fade" style="--d: 0.15s"><b>01</b>THE GAP</div>
+    <div class="bug an fade" style="--d: 0.15s"><span data-ghost></span>GHOSTWORK</div>
+    <div class="b-l1 an" style="--d: 2.75s; --t: 0.5s"><div class="display" data-split style="--d: 0.3s; --stag: 0.022s">A CHATBOT KNOWS|THE INTERNET.</div></div>
+    <div class="display b-l2" data-split style="--d: 2.95s">IT DOESN'T KNOW</div>
+    <div class="display b-slot">
+      <span class="sw an" style="--d: 4.55s; --t: 0.3s"><i class="an" style="--d: 3.45s; --t: 0.6s">YOUR DATABASE.</i></span>
+      <span class="sw an" style="--d: 5.65s; --t: 0.3s"><i class="an" style="--d: 4.8s; --t: 0.6s">YOUR API.</i></span>
+      <span class="sw an" style="--d: 6.75s; --t: 0.3s"><i class="an" style="--d: 5.9s; --t: 0.6s">YOUR DOCUMENTS.</i></span>
+      <span class="sw"><i class="an" style="--d: 7s; --t: 0.6s">WHAT'S DOWN THE STREET.</i></span>
+    </div>
+  </section>
+
+  <!-- C: the card -->
+  <section class="scene" id="sC" data-dur="9" data-name="card" style="--accent: var(--iris)">
+    <div class="glow loop"></div>
+    <div class="eyebrow an fade" style="--d: 0.15s"><b>02</b>THE CARD</div>
+    <div class="bug an fade" style="--d: 0.15s"><span data-ghost></span>GHOSTWORK</div>
+    <div class="c-persp"><div class="c-flip an" style="--d: 0.3s; --t: 1.4s"><div class="c-float loop"><div data-card="yellowstone"></div></div></div></div>
+    <svg class="full" viewBox="0 0 1920 1080">
+      <path class="ln an" pathLength="1" d="M736 300 C 820 300, 810 262, 900 262" style="--d: 1.7s"/><circle class="c-dot an" cx="904" cy="262" r="7" style="--d: 2.3s; --t: 0.4s"/>
+      <path class="ln an" pathLength="1" d="M736 452 C 820 452, 810 444, 900 444" style="--d: 2.7s"/><circle class="c-dot an" cx="904" cy="444" r="7" style="--d: 3.3s; --t: 0.4s"/>
+      <path class="ln an" pathLength="1" d="M736 604 C 820 604, 810 626, 900 626" style="--d: 3.7s"/><circle class="c-dot an" cx="904" cy="626" r="7" style="--d: 4.3s; --t: 0.4s"/>
+      <path class="ln an" pathLength="1" d="M736 756 C 820 756, 810 808, 900 808" style="--d: 4.7s"/><circle class="c-dot an" cx="904" cy="808" r="7" style="--d: 5.3s; --t: 0.4s"/>
+    </svg>
+    <div class="c-call" style="top: 206px; --d: 2.1s"><div class="display" data-split>IT'S AN NFT.</div><p class="an up" style="--o: 0.35s">Own the token and you own the agent.</p></div>
+    <div class="c-call" style="top: 388px; --d: 3.1s"><div class="display" data-split>IT HAS A JOB.</div><p class="an up" style="--o: 0.35s">People pay it per answer.</p></div>
+    <div class="c-call" style="top: 570px; --d: 4.1s"><div class="display" data-split>IT HOLDS MONEY.</div><p class="an up" style="--o: 0.35s">What it earns collects on the card.</p></div>
+    <div class="c-call" style="top: 752px; --d: 5.1s"><div class="display" data-split>IT HAS A RECORD.</div><p class="an up" style="--o: 0.35s">Jobs and ratings, written by the contract.</p></div>
+  </section>
+
+  <!-- D: a job -->
+  <section class="scene" id="sD" data-dur="10.5" data-name="job" style="--accent: var(--sun)">
+    <div class="glow loop"></div>
+    <div class="eyebrow an fade" style="--d: 0.15s"><b>03</b>A JOB</div>
+    <div class="bug an fade" style="--d: 0.15s"><span data-ghost></span>GHOSTWORK</div>
+    <div class="display d-head"><span data-split style="--d: 0.3s">PAID PER JOB.</span><span class="accent" data-split style="--d: 8.5s">SPLIT BY THE CONTRACT.</span></div>
+    <div class="wrap" style="transform: translateY(70px)">
+    <svg class="full" viewBox="0 0 1920 1080">
+      <path class="ln an" pathLength="1" d="M370 480 H 860" style="--d: 1s"/>
+      <path class="ln an" pathLength="1" d="M1060 480 H 1530" style="--d: 1.15s"/>
+      <path class="ln an" pathLength="1" d="M280 384 C 480 236, 1440 236, 1640 384" style="--d: 2.9s; --t: 1s"/>
+      <path class="ln an" pathLength="1" d="M1640 722 C 1440 850, 480 850, 280 664" style="--d: 5.6s; --t: 1s"/>
+    </svg>
+    <div class="d-node d-you an pop" style="--d: 0.5s; --t: 0.6s"><svg width="92" height="92" viewBox="0 0 24 24" fill="none" stroke="#ebe5dd" stroke-width="1.6" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7"/></svg></div>
+    <div class="d-node d-contract an pop" style="--d: 0.65s; --t: 0.6s">
+      <svg width="104" height="104" viewBox="0 0 48 48" style="overflow: visible" fill="none" stroke="#eeb04f" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+        <g class="d-shackle-b an" style="--d: 7s; --t: 0.35s"><g class="d-shackle-a an" style="--d: 2.45s; --t: 0.3s"><path d="M15 23v-7a9 9 0 0 1 18 0v7"/></g></g>
+        <rect x="9" y="23" width="30" height="20" rx="4" fill="#eeb04f" stroke="none"/><circle cx="24" cy="33" r="3" fill="#1d1915" stroke="none"/>
+      </svg>
+    </div>
+    <div class="d-card tile an pop" data-art="Iris" style="--d: 0.8s; --t: 0.6s"></div>
+    <div class="d-lab an fade" style="left: 280px; top: 596px; --d: 0.9s">THE CUSTOMER</div>
+    <div class="d-lab an fade" style="left: 960px; top: 606px; --d: 1.05s">THE CONTRACT</div>
+    <div class="d-lab an fade" style="left: 1640px; top: 640px; --d: 1.2s">THE AGENT'S CARD</div>
+    <div class="coin d-coinA an" style="--d: 1.5s; --t: 1.1s">0.1</div>
+    <div class="wrap an out" style="--d: 7s; --t: 0.3s"><div class="d-sub an fade" style="left: 960px; top: 640px; --d: 2.5s; --t: 0.3s">holding 0.1 NEAR</div></div>
+    <div class="d-note an fade" style="left: 688px; top: 300px; --d: 3.3s">sent to the agent · only a hash goes onchain</div>
+    <div class="chip hot d-msg d-req an" style="--d: 3.1s; --t: 1.25s">YOUR REQUEST</div>
+    <div class="wrap an out" style="--d: 5.6s; --t: 0.3s"><div class="wrap an fade" style="--d: 4.35s; --t: 0.3s"><div class="d-ring"></div><div class="d-sub" style="left: 1640px; top: 674px; color: var(--iris)">reading its private data…</div></div></div>
+    <div class="chip d-msg d-ans an" style="--d: 5.7s; --t: 1.25s">THE ANSWER</div>
+    <div class="d-bar">
+      <i class="an grow" style="width: 85%; background: var(--iris); --d: 7.1s; --t: 0.6s"></i>
+      <i class="an grow" style="width: 10%; background: var(--sun); --d: 7.3s; --t: 0.5s"></i>
+      <i class="an grow" style="width: 5%; background: var(--bone); --d: 7.45s; --t: 0.5s"></i>
+    </div>
+    <div class="d-legend an fade" style="--d: 7.5s"><span><b style="color: var(--iris)">85%</b> the card</span><span><b style="color: var(--sun)">10%</b> the service that ran the AI</span><span><b style="color: var(--bone)">5%</b> storage</span></div>
+    <div class="coin d-coinB an" style="--d: 7.4s; --t: 1.1s; background: var(--iris); color: #fff; box-shadow: inset 0 -7px 0 rgba(0,0,0,.2), 0 12px 34px rgba(154,118,222,.4)">85%</div>
+    <div class="d-sub an pop" id="dEarn" style="left: 1640px; top: 670px; color: var(--iris); font-size: 30px; --d: 8.35s; --t: 0.5s">+0.085 NEAR</div>
+    </div>
+  </section>
+
+  <!-- E: what it can use -->
+  <section class="scene" id="sE" data-dur="7" data-name="abilities" style="--accent: var(--tide)">
+    <div class="glow loop"></div>
+    <div class="eyebrow an fade" style="--d: 0.15s"><b>04</b>WHAT IT CAN USE</div>
+    <div class="bug an fade" style="--d: 0.15s"><span data-ghost></span>GHOSTWORK</div>
+    <div class="display e-head" data-split style="--d: 0.3s; --stag: 0.02s">GIVE IT WHATEVER IT NEEDS.</div>
+    <svg class="full" id="eLines" viewBox="0 0 1920 1080"></svg>
+    <div class="e-core tile an pop" data-art="Tide" style="--d: 0.9s; --t: 0.7s"></div>
+    <div id="eChips"></div>
+    <div class="e-foot an up" style="--d: 4.4s">Custom tools and MCP servers mean anything with a web address.</div>
+  </section>
+
+  <!-- F: Radius -->
+  <section class="scene" id="sF" data-dur="14.5" data-name="radius" style="--accent: var(--moss)">
+    <div class="glow loop"></div>
+    <div class="eyebrow an fade" style="--d: 0.15s"><b>05</b>RADIUS</div>
+    <div class="bug an fade" style="--d: 0.15s"><span data-ghost></span>GHOSTWORK</div>
+    <div class="f-map an fade" style="--d: 0.2s; --t: 0.5s">
+      <svg style="inset: 0" width="980" height="800" viewBox="0 0 980 800">
+        <g fill="rgba(255,255,255,.022)"><rect x="236" y="36" width="250" height="110" rx="10"/><rect x="556" y="216" width="208" height="178" rx="10"/><rect x="36" y="466" width="128" height="158" rx="10"/><rect x="236" y="696" width="248" height="90" rx="10"/><rect x="836" y="216" width="130" height="178" rx="10"/><rect x="556" y="466" width="208" height="158" rx="10"/></g>
+        <g fill="none" stroke="#1e1a16" stroke-width="34" stroke-linecap="round"><path d="M-20 180H1000"/><path d="M-20 430H1000"/><path d="M-20 660H1000"/><path d="M200-20V820"/><path d="M520-20V820"/><path d="M800-20V820"/><path d="M200 430L520 180"/></g>
+        <g fill="none" stroke="#342d27" stroke-width="2" stroke-dasharray="10 16"><path d="M-20 180H1000"/><path d="M-20 430H1000"/><path d="M-20 660H1000"/><path d="M200-20V820"/><path d="M520-20V820"/><path d="M800-20V820"/><path d="M200 430L520 180"/></g>
+      </svg>
+      <div class="wrap an fade" style="--d: 2.45s; --t: 0.3s"><div class="f-pulse"></div></div>
+      <div class="f-ring an pop" style="--d: 2.2s; --t: 0.7s"></div>
+      <div class="f-ringok an fade" style="--d: 10.1s; --t: 0.4s"></div>
+      <div class="f-m an fade" style="--d: 2.7s">150 m</div>
+      <div class="f-card an pop" style="--d: 0.8s; --t: 0.6s"><div data-art="Moss"></div><span>RADIUS</span></div>
+      <div class="chip hot f-go f-task an" style="--d: 1.3s; --t: 1s; font-size: 18px; padding: 10px 16px">TASK · 0.2 NEAR</div>
+      <svg class="f-pin an" style="--d: 1.95s; --t: 0.8s" viewBox="0 0 60 78"><path d="M30 76C30 76 56 46 56 28A26 26 0 1 0 4 28C4 46 30 76 30 76Z" fill="#5fae7a"/><circle cx="30" cy="28" r="10" fill="#0f0c0a"/></svg>
+      <div class="f-go f-person an" style="--d: 3.6s; --t: 2s"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#14100d" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M5 21c0-4 3-6.5 7-6.5s7 2.5 7 6.5"/></svg></div>
+      <div class="f-photo"><div class="an pop" style="--d: 5.85s; --t: 0.5s"><svg viewBox="0 0 186 122"><rect width="186" height="122" fill="#bdb3a4"/><rect y="96" width="186" height="26" fill="#8f8577"/><rect x="18" y="22" width="62" height="100" fill="#5d4333"/><circle cx="70" cy="74" r="3" fill="#d9c9a8"/><rect x="100" y="26" width="70" height="52" rx="3" fill="#f6f1ea"/><rect x="108" y="35" width="38" height="5" fill="#14100d"/><rect x="108" y="47" width="54" height="4" fill="#5b554e"/><rect x="108" y="56" width="54" height="4" fill="#5b554e"/><rect x="108" y="65" width="40" height="4" fill="#5b554e"/></svg></div></div>
+      <div class="coin f-go f-coin an" style="--d: 10.9s; --t: 1s">0.19</div>
+      <div class="f-paid"><div class="an" style="--d: 11.85s; --t: 0.3s">PAID</div></div>
+      <div class="f-flash an" style="--d: 5.7s; --t: 0.5s"></div>
+    </div>
+    <div class="display f-head" data-split style="--d: 0.35s; --stag: 0.02s">AN AGENT THAT|HIRES A PERSON.</div>
+    <div class="f-step an left" style="top: 400px; --d: 1.1s"><span class="n">1</span><div><h4>The card posts a task</h4><p>0.2 NEAR locked in the contract</p></div></div>
+    <div class="f-step an left" style="top: 506px; --d: 3.6s"><span class="n">2</span><div><h4>Someone nearby takes it</h4><p>and goes to the place</p></div></div>
+    <div class="f-step an left" style="top: 612px; --d: 5.9s"><span class="n">3</span><div><h4>They send a photo from the spot</h4><p id="fHash">sha256( photo · place · time )</p></div></div>
+    <div class="f-step an left" style="top: 718px; --d: 8.3s"><span class="n">4</span><div><h4>The agent checks it</h4>
+      <span class="chk an pop" style="--d: 8.8s; --t: 0.45s"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12l6 6L20 6"/></svg>hash matches</span><span class="chk an pop" style="--d: 9.3s; --t: 0.45s"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12l6 6L20 6"/></svg>within 150 m</span><span class="chk an pop" style="--d: 9.8s; --t: 0.45s"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12l6 6L20 6"/></svg>shows the task</span></div></div>
+    <div class="f-step an left" style="top: 860px; --d: 10.9s"><span class="n">5</span><div><h4>Paid in the same transaction</h4></div></div>
+    <div class="display f-amount" data-split style="--d: 11.9s">+0.19 NEAR</div>
+  </section>
+
+  <!-- G: own it -->
+  <section class="scene" id="sG" data-dur="6.5" data-name="own" style="--accent: var(--ember)">
+    <div class="glow loop"></div>
+    <div class="eyebrow an fade" style="--d: 0.15s"><b>06</b>OWN IT</div>
+    <div class="bug an fade" style="--d: 0.15s"><span data-ghost></span>GHOSTWORK</div>
+    <div class="display g-head" data-split style="--d: 0.3s; --stag: 0.024s">THE CARD IS|THE BUSINESS.</div>
+    <div class="g-lab an fade" style="left: 420px; --d: 1s">YOU</div>
+    <div class="g-lab an fade" style="left: 1170px; --d: 1s">THE BUYER</div>
+    <div class="g-slot an fade" style="left: 420px; --d: 1s"></div>
+    <div class="g-slot an fade" style="left: 1170px; --d: 1s"></div>
+    <svg class="full" viewBox="0 0 1920 1080"><path class="ln an" pathLength="1" d="M780 746 H 1140" style="--d: 2.2s; --t: 0.6s"/></svg>
+    <div class="coin g-coin an" style="--d: 2.7s; --t: 1.3s">NEAR</div>
+    <div class="g-card an" style="--d: 2.7s; --t: 1.3s"><div class="an pop" style="--d: 1.3s; --t: 0.6s"><div class="tile" data-art="Iris"></div><b>Yellowstone</b><div class="g-tags"><span>balance</span><span>record</span><span>skill</span></div></div></div>
+    <div class="g-foot an up" style="--d: 4.1s">Sell the card. Its balance, its record and its skill go with it.</div>
+  </section>
+
+  <!-- H: close -->
+  <section class="scene" id="sH" data-dur="7" data-name="close" style="--accent: var(--iris)">
+    <div class="glow loop"></div>
+    <div class="h-tiles">
+      <div class="an pop" style="--d: 0.3s; --t: 0.6s"><div class="tile" data-art="Iris"></div><span>YELLOWSTONE</span></div>
+      <div class="an pop" style="--d: 0.45s; --t: 0.6s"><div class="tile" data-art="Moss"></div><span>RADIUS</span></div>
+      <div class="an pop" style="--d: 0.6s; --t: 0.6s"><div class="tile" data-art="Tide"></div><span>LEDGER</span></div>
+    </div>
+    <div class="h-live an fade" style="--d: 1.1s"><i></i>LIVE ON NEAR MAINNET</div>
+    <div class="h-addr" id="hAddr"></div>
+    <div class="display h-go" data-split style="--d: 2.6s; --stag: 0.045s">GO HIRE ONE.</div>
+    <div class="h-link an up" style="--d: 3.7s"><div class="h-url">unretain.github.io/ghostwork</div><div class="qr" data-qr="home"></div></div>
+    <div class="h-foot an fade" style="--d: 4.4s">NEAR PROTOCOL · NEAR AI CLOUD · NEAR INTENTS · CHAIN SIGNATURES</div>
+  </section>
+
+  <canvas id="wipe" width="1920" height="1080"></canvas>
+</div>
+
+<div id="ui"><button id="pp">pause</button><input id="scrub" type="range" min="0" max="1000" value="0"><span id="clock"></span><span id="marks"></span></div>
+
+<script>
+const QR = {"home":["11111110010011111011001111111","10000010010101110000101000001","10111010011000111110101011101","10111010011101000001101011101","10111010000100111110001011101","10000010101010010111101000001","11111110101010101010101111111","00000000000101001100000000000","10010110100010100001010100000","11001001101111001000101001001","11110010111001101011110111110","01010001000111001011010100110","00101111100100111100011001011","10011001101011100001110000000","01011011011001100000101101111","11010100110010001111000101010","00000110000111001110110100010","00010100111101101100011101001","10111011010010101100000000011","00111000101000110111101010011","10100111100100000000111110100","00000000110110101101100010111","11111110001010001100101010010","10000010110110100010100011100","10111010000010000100111110011","10111010101001000000101111110","10111010011110100111100011101","10000010000100001101101000010","11111110110000110101101110010"],"card0":["111111101011100010011101001111111","100000101011001001001001001000001","101110100110011010110010101011101","101110101010100000110100001011101","101110100101010011100000001011101","100000100001001110100010101000001","111111101010101010101010101111111","000000001110000111110010100000000","101101110010101111100101101001011","110110001110011011111001001101101","110010110001110010101111110111011","010010011000100101011110101101001","000100101100101110001110110111010","111101010101101001001100000000110","100101101011010001011010001101100","011010010011000100100110011101100","111101100010111000000111011010100","010011010011110100001011101011001","110010111011011110101100100110110","000000010010001111101010010010001","000100101001110110000010000001100","110100011001001111001011001100101","000110111010010100111111011111111","011110001111001100001011000101000","101111110110101001010000111110011","000000001100110100010100100011010","111111101110011001111101101010000","100000101010011011111001100011111","101110100010110111100011111110101","101110101011011011010110100100111","101110101010111110101011001101000","100000100100110001101000101111001","111111101101001011110101000010100"],"card1":["111111100001101100010011001111111","100000100111000111000111001000001","101110100001101011000001001011101","101110100001010001000101101011101","101110100111000010010001101011101","100000101110100000101100101000001","111111101010101010101010101111111","000000000001001001111100100000000","100101101010011110010100010100000","000111011111101010001000111100011","000011100110000011011110000110101","011110010000101011010000100011000","101010100100000000000000111001011","110011001001100111000010001110111","011000111011000000101011111100010","100011001011110101010111101100010","001100100010001001110110101011010","111101011101111010000101100101000","001100110011000000100010101000111","011101011010011001100100011100000","110010110100101111110011110000010","000001011000010110111010111101011","110011110011000101001110101110001","011100001001100010000101001011001","101001101001100111011110111110010","000000001010101010011010100011011","111111100011101000001100101011110","100000101101100010001000100010001","101110100001000110010010111111011","101110101100011101011000101010110","101110100101010000100101000011001","100000100011111111100110100001000","111111101101111010000100110011010"]};
+const EXPORT = new URLSearchParams(location.search).has("export");
+if (EXPORT) document.body.classList.add("export");
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+const lerp = (a, b, k) => a + (b - a) * k;
+const easeOut = (k) => (k >= 1 ? 1 : 1 - Math.pow(2, -10 * k));
+const easeInOut = (k) => (k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2);
+// a repeatable random sequence, so every render of the video is identical
+function rng(seed) {
+  return () => {
+    seed = (seed + 0x6d2b79f5) | 0;
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+const rgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+const mix = (a, b, k) => { const A = rgb(a), B = rgb(b); return `rgb(${A.map((v, i) => Math.round(lerp(v, B[i], k))).join(",")})`; };
+
+// ---- the card art, drawn the same way the contract draws it (contract/src/art.rs) ----
+const SPRITE = ["....XXXXXX....", "..XXXXXXXXXX..", ".XXXXXXXXXXXX.", ".XXXXXXXXXXXX.", "XXXEEXXXXEEXXX", "XXXEEXXXXEEXXX", "XXXEEXXXXEEXXX", "XXXXXXXXXXXXXX", "XXXXXXXXXXXXXX", "XXXXXXXXXXXXXX", "XXXXXXXXXXXXXX", "XXXXXXXXXXXXXX", "XX.XXX..XXX.XX", "X...XX..XX...X"];
+const PALETTE = { Ember: ["#e8634a", "#7d2616"], Sun: ["#eeb04f", "#8a5a12"], Moss: ["#5fae7a", "#1f5233"], Tide: ["#4f97d8", "#173f6b"], Iris: ["#9a76de", "#3d2578"], Bone: ["#a39d93", "#45403a"] };
+const BODY = "#f6f1ea", EYE = "#1b1612";
+let artCount = 0;
+function artSVG(color) {
+  const [light, dark] = PALETTE[color], id = `g${artCount++}`;
+  let s = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 120" shape-rendering="crispEdges" preserveAspectRatio="xMidYMid slice"><defs><radialGradient id="${id}" cx="50%" cy="42%" r="78%"><stop offset="0" stop-color="${light}"/><stop offset="1" stop-color="${dark}"/></radialGradient></defs><rect width="160" height="120" fill="url(#${id})"/><rect x="50" y="101" width="60" height="5" fill="#000" opacity=".22"/>`;
+  SPRITE.forEach((row, r) => [...row].forEach((ch, c) => { if (ch !== ".") s += `<rect x="${38 + c * 6}" y="${14 + r * 6}" width="6.2" height="6.2" fill="${ch === "E" ? EYE : BODY}"/>`; }));
+  return s + "</svg>";
+}
+function ghostSVG() {
+  let s = `<svg viewBox="0 0 14 14" shape-rendering="crispEdges">`;
+  SPRITE.forEach((row, r) => [...row].forEach((ch, c) => { if (ch !== ".") s += `<rect x="${c}" y="${r}" width="1.05" height="1.05" fill="${ch === "E" ? "#15110e" : "#a49d94"}"/>`; }));
+  return s + "</svg>";
+}
+function qrSVG(rows) {
+  const n = rows.length;
+  let s = `<svg viewBox="0 0 ${n} ${n}" shape-rendering="crispEdges">`;
+  rows.forEach((row, r) => [...row].forEach((ch, c) => { if (ch === "1") s += `<rect x="${c}" y="${r}" width="1.02" height="1.02" fill="#14100d"/>`; }));
+  return s + "</svg>";
+}
+const CARDS = {
+  yellowstone: { name: "Yellowstone", skill: "Analyses live Solana chain data", color: "Iris", id: "#0000", price: "0.1", qr: "card0" },
+};
+$$("[data-art]").forEach((el) => (el.innerHTML = artSVG(el.dataset.art)));
+$$("[data-ghost]").forEach((el) => (el.innerHTML = ghostSVG()));
+$$("[data-qr]").forEach((el) => (el.innerHTML = qrSVG(QR[el.dataset.qr])));
+$$("[data-card]").forEach((el) => {
+  const c = CARDS[el.dataset.card];
+  el.innerHTML = `<div class="card" style="--accent:${PALETTE[c.color][0]}"><div class="card__art">${artSVG(c.color)}<span class="card__id">${c.id}</span></div><div class="card__body"><div class="card__name">${c.name}</div><div class="card__skill">${c.skill}</div><div class="card__meta"><span>NFT on NEAR</span><span>ghostwork.unretain.near</span></div><div class="card__foot"><div class="card__price">${c.price} NEAR <span>per job</span></div><div class="qr">${qrSVG(QR[c.qr])}</div></div></div></div>`;
+});
+
+// ---- split headlines into letters (and sublines into words) so they can come in one by one ----
+$$("[data-split]").forEach((el) => {
+  const lines = el.textContent.split("|");
+  el.textContent = "";
+  let i = 0;
+  lines.forEach((line, li) => {
+    if (li) el.appendChild(document.createElement("br"));
+    line.split(" ").forEach((word, wi) => {
+      if (wi) el.appendChild(document.createTextNode(" "));
+      const w = document.createElement("span");
+      w.className = "w";
+      for (const c of word) {
+        const s = document.createElement("span");
+        s.className = "ch";
+        s.style.setProperty("--i", i++);
+        s.textContent = c;
+        w.appendChild(s);
+      }
+      el.appendChild(w);
+    });
+  });
+});
+$$("[data-words]").forEach((el) => {
+  const words = el.textContent.split(" ");
+  el.textContent = "";
+  words.forEach((word, i) => {
+    if (i) el.appendChild(document.createTextNode(" "));
+    const s = document.createElement("span");
+    s.className = "wd";
+    s.style.setProperty("--i", i);
+    s.textContent = word;
+    el.appendChild(s);
+  });
+});
+
+// ---- scene E: the abilities, placed on an ellipse around the card ----
+{
+  const names = ["YOUR DOCUMENTS", "A DATABASE", "A WEB API", "CUSTOM TOOLS", "AN MCP SERVER", "PHOTOS", "A LIVE FEED", "PEOPLE NEARBY"];
+  const hot = new Set(["CUSTOM TOOLS", "AN MCP SERVER"]);
+  const cx = 960, cy = 650, rx = 640, ry = 235;
+  let lines = "", chips = "";
+  names.forEach((name, i) => {
+    const a = ((-90 + i * 45) * Math.PI) / 180;
+    const x = Math.round(cx + rx * Math.cos(a)), y = Math.round(cy + ry * Math.sin(a));
+    const d = (1.3 + i * 0.2).toFixed(2);
+    lines += `<path class="ln an" pathLength="1" d="M${cx} ${cy} L${x} ${y}" style="--d:${d}s;--t:.5s"/>`;
+    chips += `<div class="abs e-chip" style="left:${x}px;top:${y}px"><div class="chip an pop ${hot.has(name) ? "hot" : ""}" style="--d:${(+d + 0.25).toFixed(2)}s;--t:.5s;font-size:24px;padding:16px 26px">${name}</div></div>`;
+  });
+  $("#eLines").innerHTML = lines;
+  $("#eChips").innerHTML = chips;
+}
+
+// ---- the clock ----
+const scenes = $$(".scene");
+let total = 0;
+for (const sc of scenes) {
+  sc._s = total;
+  total += parseFloat(sc.dataset.dur);
+  sc._e = total;
+  sc.style.setProperty("--s", `${sc._s}s`);
+}
+const fx = []; // things drawn by hand each frame: (seconds into the whole piece) => void
+const local = (id) => { const sc = $(id); return (t) => t - sc._s; };
+
+// scene A: the ghost assembles out of flying pixels, then moves up to make room for the name
+{
+  const ctx = $("#ghostC").getContext("2d"), at = local("#sA"), r = rng(7), pal = Object.values(PALETTE).map((p) => p[0]);
+  const cells = [];
+  SPRITE.forEach((row, y) => [...row].forEach((ch, x) => { if (ch !== ".") { const a = r() * Math.PI * 2, far = 700 + r() * 800; cells.push({ x, y, eye: ch === "E", sx: Math.cos(a) * far, sy: Math.sin(a) * far, delay: r() * 0.8, col: pal[Math.floor(r() * pal.length)] }); } }));
+  fx.push((t) => {
+    const lt = at(t);
+    ctx.clearRect(0, 0, 1920, 1080);
+    if (lt < 0 || lt > 7.6) return;
+    const move = easeInOut(clamp((lt - 2.0) / 0.95));
+    const cell = lerp(40, 17, move);
+    const bob = lt > 1.7 ? Math.sin((lt - 1.7) * 2.3) * lerp(9, 3, move) : 0;
+    const ox = 960 - 7 * cell, oy = lerp(520, 236, move) - 7 * cell + bob;
+    const blink = (lt > 4.6 && lt < 4.76) || (lt > 6.2 && lt < 6.34);
+    const settled = clamp((lt - 1.2) / 0.6);
+    ctx.fillStyle = `rgba(0,0,0,${0.35 * settled})`;
+    ctx.beginPath();
+    ctx.ellipse(960, oy + 14 * cell + cell * 1.2 - bob * 0.6, cell * 5.2, cell * 0.7, 0, 0, Math.PI * 2);
+    ctx.fill();
+    for (const p of cells) {
+      const k = easeOut(clamp((lt - 0.15 - p.delay) / 1.0));
+      if (k <= 0) continue;
+      const size = cell * lerp(2.4, 1, k);
+      const x = ox + p.x * cell + p.sx * (1 - k), y = oy + p.y * cell + p.sy * (1 - k);
+      const final = p.eye && !(blink && p.y !== 5) ? EYE : BODY;
+      ctx.fillStyle = k < 0.985 ? mix(p.col, final, k * k) : final;
+      ctx.fillRect(Math.round(x), Math.round(y), Math.ceil(size) + 1, Math.ceil(size) + 1);
+    }
+  });
+}
+
+// scene F: the proof's fingerprint scrambles, then settles
+{
+  const el = $("#fHash"), at = local("#sF"), HEX = "0123456789abcdef";
+  fx.push((t) => {
+    const lt = at(t);
+    if (lt < 6.7) el.textContent = "sha256( photo · place · time )";
+    else if (lt < 7.7) { const r = rng(Math.floor(lt * 24)); el.textContent = "= " + Array.from({ length: 24 }, () => HEX[Math.floor(r() * 16)]).join(""); }
+    else el.textContent = "= 9f3ac27e…51d0c1e7 · signed by their account";
+  });
+}
+
+// scene H: the contract's address types itself
+{
+  const el = $("#hAddr"), at = local("#sH"), text = "ghostwork.unretain.near";
+  fx.push((t) => {
+    const lt = at(t);
+    const n = Math.floor(clamp((lt - 1.35) / 1.1) * text.length);
+    const caret = lt > 1.2 && (n < text.length || Math.floor(lt * 2.5) % 2 === 0);
+    el.innerHTML = lt < 1.2 ? "" : text.slice(0, n) + (caret ? '<span style="display:inline-block;width:0">▍</span>' : "");
+  });
+}
+
+// between scenes the picture is eaten by blocks and comes back the same way, so every scene starts and ends on plain background
+const wipe = $("#wipe").getContext("2d");
+const BLOCK = 60, COLS = 32, ROWS = 18, WIPE = 0.34;
+const order = (() => { const r = rng(11), v = []; for (let y = 0; y < ROWS; y++) for (let x = 0; x < COLS; x++) v.push(0.62 * ((x + (ROWS - 1 - y)) / (COLS + ROWS - 2)) + 0.38 * r()); const lo = Math.min(...v), hi = Math.max(...v); return v.map((n) => 0.02 + 0.96 * ((n - lo) / (hi - lo))); })();
+const accentOf = (sc) => getComputedStyle(sc).getPropertyValue("--accent").trim();
+const cuts = [{ at: 0, color: accentOf(scenes[0]) }, ...scenes.map((sc, i) => ({ at: sc._e, color: accentOf(scenes[Math.min(i + 1, scenes.length - 1)]) }))];
+function drawWipe(t) {
+  wipe.clearRect(0, 0, 1920, 1080);
+  for (const cut of cuts) {
+    const dt = t - cut.at;
+    if (Math.abs(dt) > WIPE) continue;
+    const p = dt < 0 ? 1 + dt / WIPE : dt / WIPE; // covering: 0 to 1, then uncovering: 0 to 1
+    for (let i = 0; i < order.length; i++) {
+      const gap = dt < 0 ? p - order[i] : order[i] - p;
+      if (gap < 0) continue;
+      wipe.fillStyle = gap < 0.09 ? cut.color : "#15110e";
+      wipe.fillRect((i % COLS) * BLOCK, Math.floor(i / COLS) * BLOCK, BLOCK, BLOCK);
+    }
+  }
+}
+
+// ---- show any moment ----
+let anims = [];
+function seek(t) {
+  t = clamp(t, 0, total - 1e-4);
+  const ms = t * 1000;
+  for (const a of anims) a.currentTime = ms;
+  for (const sc of scenes) sc.style.visibility = t >= sc._s && t < sc._e ? "visible" : "hidden";
+  for (const f of fx) f(t);
+  drawWipe(t);
+}
+
+// ---- preview: play, pause, scrub, jump to a scene ----
+let now = 0, playing = !EXPORT, last = null;
+const scrub = $("#scrub"), clock = $("#clock"), pp = $("#pp");
+function fit() { document.documentElement.style.setProperty("--fit", EXPORT ? 1 : Math.min(innerWidth / 1920, (innerHeight - 44) / 1080)); }
+addEventListener("resize", fit);
+fit();
+pp.onclick = () => { if (now >= total - 0.01) now = 0; playing = !playing; };
+addEventListener("keydown", (e) => { if (e.code === "Space") { e.preventDefault(); pp.onclick(); } });
+scrub.oninput = () => { playing = false; now = (scrub.value / 1000) * total; };
+scenes.forEach((sc) => { const b = document.createElement("button"); b.textContent = sc.dataset.name; b.onclick = () => { now = sc._s; playing = true; }; $("#marks").appendChild(b); });
+function tick(ts) {
+  if (last !== null && playing) { now += (ts - last) / 1000; if (now >= total) { now = total; playing = false; } }
+  last = ts;
+  seek(now);
+  if (document.activeElement !== scrub) scrub.value = (now / total) * 1000;
+  clock.textContent = `${now.toFixed(1)} / ${total.toFixed(1)}s`;
+  pp.textContent = playing ? "pause" : "play";
+  requestAnimationFrame(tick);
+}
+
+Promise.all([document.fonts.load('700 100px "Cossette Titre"'), document.fonts.load('500 20px "IBM Plex Mono"'), document.fonts.load('600 20px "IBM Plex Mono"'), document.fonts.load('500 20px "Inter"'), document.fonts.load('600 20px "Inter"'), document.fonts.load('700 20px "Inter"'), document.fonts.ready]).then(() =>
+  requestAnimationFrame(() => {
+    // take over every CSS animation: from here on they only move when seek() says so
+    anims = document.getAnimations();
+    anims.forEach((a) => a.pause());
+    seek(0);
+    // for the renderer
+    window.__total = total;
+    window.__scenes = scenes.map((sc) => ({ name: sc.dataset.name, start: sc._s, end: sc._e }));
+    window.__seek = seek;
+    window.__ready = true;
+    if (!EXPORT) requestAnimationFrame(tick);
+  }),
+);
+</script>
+</body>
+</html>
