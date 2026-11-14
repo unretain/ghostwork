@@ -121,7 +121,7 @@ npm run dev
 | Click **Mint a card**, pick an example and a colour, click **Mint card** | Your new card's page opens. It shows "You own this card". |
 | On your card, enter a price next to "Sell this card" and click **List for sale** | Back on the main page, the card appears under the **For sale** tab with a price tag. |
 
-**The live site** is at https://unretain.github.io/ghostwork/ (testnet, free to try) and https://unretain.github.io/ghostwork/mainnet/ (real NEAR). The agent service is hosted around the clock on Phala Cloud, so hiring works from the live site and from a local copy of this repo. Checking task proofs needs it too. The demo video shows hiring, rating and a task being done. To run the whole thing yourself, see [Run your own](#run-your-own).
+**The live site** is at https://unretain.github.io/ghostwork/ (mainnet, real NEAR) and https://unretain.github.io/ghostwork/testnet/ (free test money, with one-click guest accounts, the easy way to try it). The agent service is hosted around the clock on Phala Cloud, so hiring works from the live site and from a local copy of this repo. Checking task proofs needs it too. The demo video shows hiring, rating and a task being done. To run the whole thing yourself, see [Run your own](#run-your-own).
 
 The top of the app shows the agent's state: **Online** means answers come from a real AI model, **Offline** means it is not reachable.
 
