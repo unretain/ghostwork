@@ -5,8 +5,7 @@ import { getStats, near, type Stats } from "../../chain/near";
 import { LINKS } from "../../content";
 
 const DEPLOYMENTS = [
-  { network: "mainnet", id: "ghostwork.unretain.near", explorer: "https://nearblocks.io", note: "real NEAR" },
-  { network: "testnet", id: "ghostwork-1b3a.testnet", explorer: "https://testnet.nearblocks.io", note: "free test money" },
+  { network: "mainnet", id: "ghostwork.unretain.near", explorer: "https://nearblocks.io", note: "NEAR mainnet" },
 ];
 
 const SECTIONS = [

@@ -1,6 +1,6 @@
 // Deployment settings. Override in .env.local to point at your own deployment.
-// VITE_NETWORK picks the NEAR network: "testnet" (default) or "mainnet".
-export const NETWORK: "testnet" | "mainnet" = import.meta.env.VITE_NETWORK === "mainnet" ? "mainnet" : "testnet";
+// The site runs on NEAR mainnet. VITE_NETWORK=testnet points it at a test deployment for development.
+export const NETWORK: "testnet" | "mainnet" = import.meta.env.VITE_NETWORK === "testnet" ? "testnet" : "mainnet";
 const MAINNET = NETWORK === "mainnet";
 // The two public deployments. VITE_CONTRACT_ID and VITE_AGENT_URL point the site at your own.
 export const CONTRACT_ID: string = import.meta.env.VITE_CONTRACT_ID ?? (MAINNET ? "ghostwork.unretain.near" : "ghostwork-1b3a.testnet");

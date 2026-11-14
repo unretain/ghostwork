@@ -35,7 +35,7 @@ Built for the NEAR hackathon, _Build Beyond Boundaries_. Track: **NFTs That Do S
 
 ## How it uses NEAR
 
-Everything that involves money or trust is done by one smart contract, not by our server. The same contract is deployed twice: on NEAR mainnet at `ghostwork.unretain.near` (real NEAR) and on NEAR testnet at `ghostwork-1b3a.testnet` (free test money, and the one to use for trying things out).
+Everything that involves money or trust is done by one smart contract, not by our server. It is live on NEAR mainnet at [`ghostwork.unretain.near`](https://nearblocks.io/address/ghostwork.unretain.near).
 
 | What NEAR does | In plain terms |
 | --- | --- |
@@ -48,7 +48,7 @@ Everything that involves money or trust is done by one smart contract, not by ou
 | **The contract keeps the record** | Job counts and ratings are written by the contract when those things happen. Only someone who paid for a job can rate it, and only once. |
 | **The contract decides who may deliver answers** | Only an agent service the contract has approved can mark a job as answered. |
 | **The AI model runs on NEAR AI Cloud** | Answers are written by an open model hosted by NEAR AI. The agent service pays for it out of its 10%. |
-| **NEAR Intents: prices, and paying from other chains** | Card pages show what the price is worth in dollars and SOL, using the live rates NEAR Intents trades at. On mainnet, "Add funds" gives you an address on Solana, Ethereum, Base, Arbitrum or Bitcoin; send SOL, USDC, ETH or BTC there and NEAR Intents delivers NEAR to your account. Intents does not exist on testnet, so there the button only explains this. |
+| **NEAR Intents: prices, and paying from other chains** | Card pages show what the price is worth in dollars and SOL, using the live rates NEAR Intents trades at. On mainnet, "Add funds" gives you an address on Solana, Ethereum, Base, Arbitrum or Bitcoin; send SOL, USDC, ETH or BTC there and NEAR Intents delivers NEAR to your account. |
 | **Each card gets its own Ethereum and Bitcoin address** (NEAR Chain Signatures) | The contract can sign transactions for addresses on other blockchains that belong to a specific card. Only the card's owner can ask it to. This is built but is a side feature. |
 
 Private text never goes on the blockchain. The owner's instructions, knowledge and data-source keys, the customer's question and the answer are sent directly to the agent service. The contract only stores a fingerprint (a hash) of each one, which lets anyone check later that nothing was swapped.
@@ -105,10 +105,8 @@ Anything else can go behind a custom tool or an MCP server, or be added as one m
 
 The site is live. Nothing to install.
 
-- **Mainnet (real NEAR):** https://unretain.github.io/ghostwork/
-- **Testnet (free test money):** https://unretain.github.io/ghostwork/testnet/
+**https://unretain.github.io/ghostwork/**
 
-The testnet site is the quickest way to try everything: **Try as guest** gives you a funded test account in one click.
 
 | Do | See |
 | --- | --- |
@@ -116,7 +114,7 @@ The testnet site is the quickest way to try everything: **Try as guest** gives y
 | Click **Browse the cards** | Every card on the contract, with tabs, search and sorting. This needs no wallet. |
 | Type `solana` in the search box | Only the Yellowstone card stays. |
 | Click a card | Its page: QR code, price (with its value in dollars and SOL), record, and a "Passport" with its owner and details read from the contract. |
-| Click **Try as guest** (testnet) or **Connect NEAR wallet** | Your account and balance appear at the top right. |
+| Click **Connect NEAR wallet** | Your account and balance appear at the top right. |
 | Type a question on a card and click **Pay and run** | The answer appears on the page. Cards that look things up live take around half a minute. |
 | Click **Mint a card**, pick an example and a colour, click **Mint card** | Your new card's page opens. It shows "You own this card". |
 | On your card, enter a price next to "Sell this card" and click **List for sale** | The card appears under the **For sale** tab with a price tag. |
@@ -135,7 +133,7 @@ A card can be hired from code, with no browser.
 - There is a command-line client that prints JSON:
 
 ```bash
-export NEAR_ACCOUNT_ID=you.testnet NEAR_PRIVATE_KEY=ed25519:...
+export NEAR_NETWORK=mainnet NEAR_ACCOUNT_ID=you.near NEAR_PRIVATE_KEY=ed25519:...
 node scripts/hire.mjs list
 node scripts/hire.mjs hire 0 "What are the busiest programs on Solana right now?"
 node scripts/hire.mjs rate <job-id> 5
@@ -156,7 +154,7 @@ The agent service also lists tasks as JSON at `GET /api/tasks`.
 | [`contract/`](contract/) | The smart contract, in Rust. Cards, jobs, payments, ratings, sales, card art, and tasks for people (`tasks.rs`). 106 unit tests. |
 | [`agent/`](agent/) | The agent service, in TypeScript. Keeps each card's sealed text, runs jobs through an AI model, queries private data sources, posts tasks and checks their proofs (`radius.ts`), reports results to the contract. |
 | [`src/`](src/) | The website, in React. Landing page, card browser (`#/app`), card pages (`#/card/<number>`), the task board (`#/tasks`) and the docs (`#/docs`). |
-| [`scripts/`](scripts/) | `hire.mjs` and `radius.mjs` (clients for agents), `seed.mjs` (starter cards), `e2e.mjs` (full test against testnet), `deploy-mainnet.sh`. |
+| [`scripts/`](scripts/) | `hire.mjs` and `radius.mjs` (clients for agents), `seed.mjs` (starter cards), `e2e.mjs` (full end-to-end test), `deploy-mainnet.sh`. |
 
 ## Run your own
 
